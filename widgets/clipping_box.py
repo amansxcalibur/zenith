@@ -191,7 +191,7 @@ class AnimatedClippingBox(TrueClippingBox):
         else:
             self.expand()
 
-    def expand(self, target_height: int| None = None) -> None:
+    def expand(self, target_height: int | None = None) -> None:
         if self._revealed:
             return
         self._revealed = True
@@ -225,3 +225,69 @@ class AnimatedClippingBox(TrueClippingBox):
             return
         _, natural_height = Box.do_get_preferred_height(self)
         self._animate(self.get_allocated_height(), natural_height)
+
+
+class OddlySpecificClippingBox(Box):
+    """Adds per-corner clipping."""
+
+    @staticmethod
+    def render_shape(
+        cr: cairo.Context, width: int, height: int, radii: list[int] = [0, 0, 0, 0]
+    ):
+        tl, tr, br, bl = radii
+
+        max_allowed = min(width / 2, height / 2)
+        tl = max(0, min(tl, max_allowed))
+        tr = max(0, min(tr, max_allowed))
+        br = max(0, min(br, max_allowed))
+        bl = max(0, min(bl, max_allowed))
+
+        if tl == 0 and tr == 0 and br == 0 and bl == 0:
+            cr.rectangle(0, 0, width, height)
+            return
+
+        cr.move_to(tl, 0)
+        cr.line_to(width - tr, 0)
+        if tr > 0:
+            cr.arc(width - tr, tr, tr, -(math.pi / 2), 0)
+        else:
+            cr.line_to(width, 0)
+
+        cr.line_to(width, height - br)
+        if br > 0:
+            cr.arc(width - br, height - br, br, 0, (math.pi / 2))
+        else:
+            cr.line_to(width, height)
+
+        cr.line_to(bl, height)
+        if bl > 0:
+            cr.arc(bl, height - bl, bl, (math.pi / 2), math.pi)
+        else:
+            cr.line_to(0, height)
+
+        cr.line_to(0, tl)
+        if tl > 0:
+            cr.arc(tl, tl, tl, math.pi, (3 * (math.pi / 2)))
+        else:
+            cr.line_to(0, 0)
+
+        return cr.close_path()
+
+    def __init__(self, radii: list[int] = [0, 0, 0, 0], **kwargs):
+        self._radii = radii
+        super().__init__(**kwargs)
+
+    def do_draw(self, cr: cairo.Context):
+        cr.save()
+        OddlySpecificClippingBox.render_shape(
+            cr,
+            self.get_allocated_width(),
+            self.get_allocated_height(),
+            self._radii,
+        )
+        cr.clip()
+
+        Box.do_draw(self, cr)
+
+        cr.restore()
+        return True

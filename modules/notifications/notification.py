@@ -40,6 +40,7 @@ from expressive_shapes.shapes.shape_presets import (
 
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
+from fabric.widgets.stack import Stack
 from fabric.widgets.button import Button
 from fabric.widgets.eventbox import EventBox
 from fabric.widgets.scrolledwindow import ScrolledWindow
@@ -47,10 +48,11 @@ from fabric.notifications import Notifications, Notification
 from fabric.utils import invoke_repeater
 
 from modules.tile import TileSimple
-from widgets.clipping_box import ClippingBox
 from widgets.rounded_image import RoundedImage
 from widgets.material_label import MaterialIconLabel
 from widgets.shapes.expressive.morphing_shapes import ExpressiveShape
+from widgets.clipping_box import ClippingBox, OddlySpecificClippingBox
+from services.animator import Animator
 from utils.helpers import format_accel_to_keybind
 import icons
 from config.config import config
@@ -387,6 +389,216 @@ class ActiveNotificationWidget(EventBox):
         logger.debug("NotificationWidget cleaned up")
 
 
+class CarouselIcon(Box):
+    def __init__(self, group: NotificationGroup, on_clicked=None, **kwargs):
+        super().__init__(name="notif-carousel-icon", **kwargs)
+        self.app_name = group.app_name
+
+        self.icon = Box(
+            v_align="center",
+            style="min-width:18px; min-height:18px;",
+            children=group.get_icon(),
+        )
+
+        self._btn = Button(
+            child=self.icon,
+            tooltip_text=group.app_name,
+            on_clicked=lambda *_: on_clicked() if on_clicked else None,
+        )
+        self.children = [self._btn]
+        self.show_all()
+
+    def measured_width(self) -> int:
+        w = self.get_allocation().width
+        return w if w else self.get_preferred_width()[0]
+
+
+class NotificationGroupCarousal(Box):
+    SPACING = 8
+
+    def __init__(
+        self,
+        main_scrolled_window: ScrolledWindow,
+        main_viewport: Box,
+        on_icon_clicked: callable = None,
+        **kwargs,
+    ):
+        super().__init__(
+            name="notif-carousal", orientation="h", h_expand=True, **kwargs
+        )
+
+        self._main_scrolled = main_scrolled_window
+        self._main_viewport = main_viewport
+        self._main_vadj = main_scrolled_window.get_vadjustment()
+        self._on_icon_clicked = on_icon_clicked
+
+        self._icons: dict[str, CarouselIcon] = {}
+        self._animator = Animator(
+            bezier_curve=(0.15, 0.88, 0.68, 0.95), duration=0.15, tick_widget=self
+        )
+        self._animator.connect("notify::value", self.do_update)
+
+        self._last_overflow_order = []
+        self._recompute_pending = False
+        self._anim_source_id = None
+
+        self._spacer = Box(name="notif-carousal-spacer")
+        self.dot_placeholder = Box(style="min-width:1px; min-height:1px;")
+
+        self._icon_row = Box(
+            orientation="h",
+            h_expand=True,
+            spacing=self.SPACING,
+        )
+        self._icon_row.pack_end(self._spacer, False, False, 0)
+
+        self.scrolled = ScrolledWindow(
+            name="notif-carousal-scroller",
+            h_scrollbar_policy="external",
+            v_scrollbar_policy="external",
+            min_content_size=(
+                364,  # (18+SPACING)*x
+                10,
+            ),
+            max_content_size=(
+                364,
+                NotificationConfig.WINDOW_MAX_HEIGHT,
+            ),
+            child=self._icon_row,
+        )
+        self._hadj = self.scrolled.get_hadjustment()
+
+        self.scrolled_container_wrapper = Box(
+            name="notif-carousal-box", children=self.scrolled
+        )
+
+        self.stack = Stack(
+            interpolate_size=True,
+            transition_duration=250,
+            transition_type="crossfade",
+            children=[self.dot_placeholder, self.scrolled_container_wrapper],
+        )
+        self.stack.set_homogeneous(False)
+
+        self.children = [
+            Box(
+                style="min-width: 384px;",
+                h_align="center",
+                h_expand=True,
+                children=self.stack,
+            )
+        ]
+
+        self._main_vadj.connect("value-changed", lambda *_: self._queue_recompute())
+        self._main_vadj.connect("changed", lambda *_: self._queue_recompute())
+        self._main_viewport.connect("size-allocate", lambda *_: self._queue_recompute())
+        self.scrolled.connect("size-allocate", self._on_own_size_allocate)
+
+    def _on_own_size_allocate(self, widget, allocation):
+        self._spacer.set_size_request(allocation.width, -1)
+        self._queue_recompute()
+
+    def sync(self, groups: list) -> None:
+        current = {g.app_name for g in groups}
+        changed = False
+
+        for app_name in list(self._icons.keys()):
+            if app_name not in current:
+                icon = self._icons.pop(app_name)
+                if icon.get_parent() is self._icon_row:
+                    self._icon_row.remove(icon)
+                # destroys the app icon as well from NotificationGroup. So you'll have
+                # to re-resolve it again (done by NotificationGroup.get_icon()).
+                icon.destroy()
+                changed = True
+
+        for group in groups:
+            if group.app_name not in self._icons:
+                icon = CarouselIcon(
+                    group,
+                    on_clicked=lambda g=group: (
+                        self._on_icon_clicked and self._on_icon_clicked(g)
+                    ),
+                )
+                self._icons[group.app_name] = icon
+                self._icon_row.add(icon)
+                icon.show_all()
+                changed = True
+
+        if changed:
+            self._queue_recompute()
+
+    def _queue_recompute(self):
+        if self._recompute_pending:
+            return
+        self._recompute_pending = True
+        GLib.idle_add(self._do_recompute)
+
+    def _do_recompute(self):
+        self._recompute_pending = False
+
+        top = self._main_vadj.get_value()
+        bottom = top + self._main_vadj.get_page_size()
+
+        overflow_order = []
+        for child in self._main_viewport.get_children():
+            app_name = getattr(child, "app_name", None)
+            if app_name is None or app_name not in self._icons:
+                continue
+            if child.get_allocation().y >= bottom:
+                overflow_order.append(app_name)
+
+        self._set_has_overflow(bool(overflow_order))
+
+        self._last_overflow_order = overflow_order
+
+        if not overflow_order:
+            return False
+
+        rest = [name for name in self._icons if name not in overflow_order]
+        for index, app_name in enumerate([*rest, *overflow_order], start=1):
+            self._icon_row.reorder_child(self._icons[app_name], index)
+
+        target = sum(self._icons[name].measured_width() + self.SPACING for name in rest)
+        self._animate_scroll_to(target)
+        return False
+
+    def _set_has_overflow(self, has_overflow: bool) -> None:
+        target_child = (
+            self.scrolled_container_wrapper if has_overflow else self.dot_placeholder
+        )
+        if self.stack.get_visible_child() is target_child:
+            return
+
+        self.stack.set_visible_child(target_child)
+
+    def _animate_scroll_to(self, target: float, duration_ms: int = 150):
+        hadj = self._hadj
+        upper = max(0.0, hadj.get_upper() - hadj.get_page_size())
+        target = max(0.0, min(target, upper))
+        start = hadj.get_value()
+
+        animator = self._animator
+
+        if animator.playing and abs(animator.max_value - target) < 1.0:
+            return
+
+        if abs(target - start) < 1.0:
+            animator.stop()
+            hadj.set_value(target)
+            return
+
+        animator.pause()
+        animator.min_value = start
+        animator.max_value = target
+        animator.value = start
+
+        animator.play()
+
+    def do_update(self, anim, pspec):
+        self._hadj.set_value(anim.value)
+
+
 class NotificationManager:
     def __init__(self, **kwargs):
         super().__init__(
@@ -427,8 +639,22 @@ class NotificationManager:
             child=self.viewport,
         )
 
+        self.notification_carousal = NotificationGroupCarousal(
+            main_scrolled_window=self.scrolled_window,
+            main_viewport=self.viewport,
+            on_icon_clicked=self._scroll_to_group,
+        )
+
         self.notification_content = ClippingBox(
-            name="notification-window-container", children=self.scrolled_window
+            name="notification-window-container",
+            orientation="v",
+            children=[
+                OddlySpecificClippingBox(
+                    radii=[0, 0, 25, 25],
+                    children=self.scrolled_window,
+                ),
+                self.notification_carousal,
+            ],
         )
 
         self.active_notifications_box = Box(
@@ -569,59 +795,67 @@ class NotificationManager:
 
             if notification_widget in self._active_notifications:
                 self._active_notifications.remove(notification_widget)
-                self.active_notifications_box.remove(notification_widget)
+            self.active_notifications_box.remove(notification_widget)
 
             app_name = notification_widget._notification.app_name
-
             if app_name not in self._groups:
                 group = NotificationGroup(
-                    app_name=app_name,
-                    on_empty=self._remove_group,
+                    app_name=app_name, on_empty=self._remove_group
                 )
+                group.connect("timestamp-change", lambda *_: self._resort_viewport())
                 self._groups[app_name] = group
-                self.viewport.pack_end(group, True, None, 0)
+                self.viewport.add(group)
 
             self._groups[app_name].add_widget(notification_widget)
-            self._resort_viewport()
 
-            # mark unread
-            if not self.notification_history.get_mapped():
-                if notification_widget.urgency in (1, 2):
-                    if not self._notification_sig_emittor.has_unread:
-                        self._notification_sig_emittor.has_unread = True
-                    if (
-                        not self._notification_sig_emittor.has_urgent_unread
-                        and notification_widget.urgency == 2
-                    ):
-                        self._notification_sig_emittor.has_urgent_unread = True
+            # mark read
+            if (
+                not self.notification_history.get_mapped()
+                and notification_widget.urgency in (1, 2)
+            ):
+                emitter = self._notification_sig_emittor
+                emitter.has_unread = True
+                if notification_widget.urgency == 2:
+                    emitter.has_urgent_unread = True
 
             self._update_ui_state()
-
-        except Exception as e:
-            logger.error(f"Failed to move notification to revealer: {e}")
+        except Exception:
+            logger.exception(
+                "Failed to move notification %r to revealer", notification_widget
+            )
 
     def _remove_group(self, group: NotificationGroup) -> None:
-        """Called by NotificationGroup when it becomes empty."""
         app_name = group.app_name
         if app_name in self._groups:
             del self._groups[app_name]
         if group.get_parent() is self.viewport:
             self.viewport.remove(group)
+        self.notification_carousal.sync(list(self._groups.values()))
         self._update_ui_state()
+
+    def _scroll_to_group(self, group) -> None:
+        y = 0
+        for child in self.viewport.get_children():
+            if child is group:
+                self._main_scrolled_window_adjust(y)
+                return
+            y += child.get_allocation().height or 0
+
+    def _main_scrolled_window_adjust(self, y: int) -> None:
+        vadj = self.scrolled_window.get_vadjustment()
+        vadj.set_value(min(y, vadj.get_upper() - vadj.get_page_size()))
 
     def _group_sort_key(self, group: NotificationGroup):
         # urgency DESC, latest timestamp DESC
-        return (-group.max_urgency, -group.latest_timestamp.timestamp())
+        return (-group.max_urgency, -group.latest_timestamp)
 
     def _resort_viewport(self) -> None:
-        # urgency > recency
-        groups = list(self._groups.values())
-        groups.sort(key=self._group_sort_key)
+        groups = sorted(self._groups.values(), key=self._group_sort_key)
 
-        for group in self.viewport.get_children():
-            self.viewport.remove(group)
-        for group in groups:
-            self.viewport.pack_end(group, True, None, 0)
+        for index, group in enumerate(groups):
+            self.viewport.reorder_child(group, index)
+
+        self.notification_carousal.sync(groups)
 
     def _update_ui_state(self):
         widget = self.clear_btn.get_children()[0]
@@ -685,6 +919,7 @@ class NotificationManager:
 
         self._groups.clear()
         self._active_notifications.clear()
+        self.notification_carousal.sync([])
         self._update_ui_state()
 
     def get_notifications_box(self):

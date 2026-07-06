@@ -59,8 +59,8 @@
 #notification-window-container {
   background-color: alpha(var(--surface-semi-bright), 0.8);
   border-radius: 30px;
-  /* margin-bottom: 3px; */
   min-height: 60px;
+  padding: 0px 8px;
 }
 
 #notification-reveal-btn {
@@ -100,7 +100,9 @@
 
 #notification-scrolled-window viewport > * {
   border-radius: 25px;
-  padding: 8px;
+  border-top-left-radius: 0px;
+  border-top-right-radius: 0px;
+  padding: 8px 0px 0px 0px;
 }
 
 .action-button {
@@ -264,4 +266,26 @@
 }
 #img-expander.critical {
   background-color: var(--primary);
+}
+
+/* carousal */
+#notif-carousal{
+  margin: 8px 0 0 0;
+}
+
+#notif-carousal-box{
+  border-radius: 25px;
+  background-color: var(--shadow);
+  min-height: 28px;
+  margin: 0 0 8px 0;
+  padding: 10px;
+}
+
+#notif-carousal-spacer{
+  /* background-color: red; */
+  min-width: 364px;
+}
+
+#notif-carousal-scroller{
+  /* background-color: green; */
 }

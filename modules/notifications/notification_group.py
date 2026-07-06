@@ -6,10 +6,12 @@ if TYPE_CHECKING:
     from .notification import ActiveNotificationWidget
 
 import os
+import bisect
 import tempfile
 from loguru import logger
 from typing import Callable
 from datetime import datetime
+from functools import lru_cache
 
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
@@ -31,7 +33,7 @@ from .common import NotificationConfig
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gtk, GLib
+from gi.repository import GdkPixbuf, Gtk, GLib, GObject
 
 
 _icon_resolver: "IconResolver | None" = None
@@ -44,28 +46,42 @@ def _get_icon_resolver() -> "IconResolver":
     return _icon_resolver
 
 
-def _resolve_app_icon(notification, size: int = 28) -> Gtk.Widget:
+@lru_cache(maxsize=128)
+def _resolve_icon_asset(app_name: str, app_icon: str, has_pixbuf: bool, size: int):
     resolver = _get_icon_resolver()
 
-    # try app_icon string first (sometimes it's a valid named icon)
-    for candidate in filter(
-        None,
-        [
-            notification.app_icon,
-            resolver.get_icon(notification.app_name or ""),
-        ],
-    ):
+    for candidate in filter(None, [app_icon, resolver.get_icon(app_name or "")]):
         if candidate and candidate != "application-x-symbolic":
-            img = Gtk.Image.new_from_icon_name(candidate, Gtk.IconSize.INVALID)
-            img.set_pixel_size(size)
-            img.set_valign(Gtk.Align.CENTER)
-            img.show()
-            return img
+            return ("icon_name", candidate)
 
-    # image_pixbuf last resort
+    if has_pixbuf:
+        # only returning a token showing we should use the pixbuf
+        return ("pixbuf", None)
+
+    return ("fallback", None)
+
+
+def _resolve_app_icon(notification, size: int = 28) -> Gtk.Widget:
+    has_pixbuf = False
     try:
         pixbuf = notification.image_pixbuf
-        if pixbuf:
+        has_pixbuf = pixbuf is not None
+    except Exception:
+        pixbuf = None
+
+    asset_type, asset_value = _resolve_icon_asset(
+        notification.app_name, notification.app_icon, has_pixbuf, size
+    )
+
+    if asset_type == "icon_name":
+        img = Gtk.Image.new_from_icon_name(asset_value, Gtk.IconSize.INVALID)
+        img.set_pixel_size(size)
+        img.set_valign(Gtk.Align.CENTER)
+        img.show()
+        return img
+
+    if asset_type == "pixbuf" and pixbuf:
+        try:
             scaled = pixbuf.scale_simple(size, size, GdkPixbuf.InterpType.BILINEAR)
             img = RoundedImage(
                 pixbuf=scaled,
@@ -74,10 +90,10 @@ def _resolve_app_icon(notification, size: int = 28) -> Gtk.Widget:
             )
             img.show()
             return img
-    except Exception:
-        pass
+        except Exception:
+            pass
 
-    # blur glyph
+    # fallback
     fallback = MaterialIconLabel(
         name="notification-icon",
         icon_text=icons.blur.symbol(),
@@ -101,12 +117,11 @@ class NotificationWidget(Box):
 
     @property
     def expanded_height(self) -> int:
-        # switch stack instantly for a measurement probe, not the real transition
-        self._stack.set_transition_duration(0)
-        self._stack.set_visible_child_name(self.PAGE_EXPANDED)
-        _, h = self.get_preferred_height()
-        self._stack.set_visible_child_name(self.PAGE_COLLAPSED)
-        self._stack.set_transition_duration(NotificationConfig.TRANSITION_DURATION)
+        h = (
+            self.get_preferred_height()[1]
+            - self.collapsed_page.get_preferred_height()[1]
+            + self._expanded_short.get_preferred_height()[1]
+        )
         return h
 
     def __init__(self, notification: Notification, **kwargs):
@@ -115,7 +130,7 @@ class NotificationWidget(Box):
         self._notification = notification
         self._closed_connection = None
         self._scaled_pixbuf = None
-        self.timestamp = datetime.now()
+        self.timestamp = notification.time
         self.urgency = notification.urgency
         self.toggler = False
 
@@ -243,7 +258,7 @@ class NotificationWidget(Box):
     def _build_expanded_page(self, notification: Notification) -> Box:
         summary = notification.summary or ""
         body = notification.body or ""
-        time_text = self.timestamp.strftime("%H:%M")
+        time_text = datetime.fromtimestamp(self.timestamp).strftime("%H:%M")
         max_c = NotificationConfig.MAX_CHARS_PER_LINE
 
         # expander button
@@ -367,9 +382,7 @@ class NotificationWidget(Box):
         )
 
     def _on_toggle_expanded_page(self, btn, state: bool | None = None):
-        expanded = (
-            not self.toggler if state is None else state
-        )  # expanding → show long; collapsing → show short
+        expanded = not self.toggler if state is None else state
         self.toggler = expanded
 
         self.revealer_btn_label.set_angle(90 if expanded else -90)
@@ -436,17 +449,22 @@ class NotificationWidget(Box):
 
 
 class NotificationGroup(AnimatedClippingBox):
+    # dont look at me funny now. I was tired trying to figure out what went wrong with @Signal
+    __gsignals__ = {
+        "timestamp-change": (GObject.SignalFlags.RUN_LAST, None, (int,)),
+    }
+
     @property
     def count(self) -> int:
         return len(self._widgets)
 
     @property
     def max_urgency(self) -> int:
-        return max((w.urgency for w in self._widgets), default=0)
+        return self._max_urgency
 
     @property
-    def latest_timestamp(self) -> datetime:
-        return max((w.timestamp for w in self._widgets), default=datetime.min)
+    def latest_timestamp(self) -> float:
+        return self._latest_timestamp
 
     @staticmethod
     def _set_widget_expand_style(widget: NotificationWidget, expanded: bool) -> None:
@@ -463,12 +481,16 @@ class NotificationGroup(AnimatedClippingBox):
             name="notif-group-container",
             orientation="v",
             max_height=AnimatedClippingBox._COLLAPSED_HEIGHT_DEFAULT,
+            duration=0.15,
             **kwargs,
         )
-
         self.app_name = app_name
         self._on_empty = on_empty
         self._widgets: list[NotificationWidget] = []
+        self._widgets: list[NotificationWidget] = []
+        self._notif_ids: set[int] = set()
+        self._max_urgency = 0
+        self._latest_timestamp = 0.0
         self._expanded = False  # start collapsed
         self._current_icon_source: str | None = None
 
@@ -485,7 +507,7 @@ class NotificationGroup(AnimatedClippingBox):
 
         self._toggle_icon = MaterialIconLabel(
             icon_text=icons.arrow_forward.symbol(),
-            angle=90,  # starts pointing right = collapsed
+            angle=90,  # starts pointing up = collapsed
         )
         self._toggle_btn = Button(
             name="notif-group-toggle-btn",
@@ -558,7 +580,6 @@ class NotificationGroup(AnimatedClippingBox):
             children=[self._top_row],
         )
 
-        # children live directly in this box, always visible
         self._children_box = Box(
             name="notif-group-children-box",
             orientation="v",
@@ -576,31 +597,57 @@ class NotificationGroup(AnimatedClippingBox):
 
     def add_widget(self, widget: ActiveNotificationWidget) -> None:
         notif = widget._notification
+        if notif.id in self._notif_ids:
+            return
 
-        def add():
-            # guard against duplicate notification ids
-            if any(w._notification.id == notif.id for w in self._widgets):
-                return
-            new_widget = NotificationWidget(notification=notif)
-            if self._expanded:
-                new_widget.set_expanded(True)
-                self._set_widget_expand_style(new_widget, True)
-            else:
-                new_widget.add_style_class("contract")
-            new_widget.connect("destroy", self._on_widget_destroyed)
-            self._widgets.append(new_widget)
-            self._resort()
-            self._rebuild_children_box()
-            self._sync_header()
-            self._refresh_height()
+        new_widget = NotificationWidget(notification=notif)
 
-        GLib.idle_add(add)
+        if self._expanded:
+            new_widget.set_expanded(True)
+            self._set_widget_expand_style(new_widget, True)
+        else:
+            new_widget.add_style_class("contract")
+
+        new_widget.connect("destroy", self._on_widget_destroyed)
+
+        insert_key = self._sort_key(new_widget)
+        keys = [self._sort_key(w) for w in self._widgets]
+        idx = bisect.bisect_right(keys, insert_key)
+
+        timestamp_changed = new_widget.timestamp > self._latest_timestamp
+        self._latest_timestamp = max(self._latest_timestamp, new_widget.timestamp)
+        self._max_urgency = max(self._max_urgency, new_widget.urgency)
+        self._notif_ids.add(notif.id)
+
+        self._widgets.insert(idx, new_widget)
+        self._children_box.pack_end(new_widget, True, None, 0)
+
+        gtk_position = len(self._widgets) - 1 - idx
+        self._children_box.reorder_child(new_widget, gtk_position)
+
+        self._sync_header()
+        self._refresh_height()
+
+        if timestamp_changed:
+            self.emit("timestamp-change", new_widget.timestamp)
 
     def remove_widget(self, widget: NotificationWidget) -> None:
         if widget in self._widgets:
             self._widgets.remove(widget)
+            self._notif_ids.discard(widget._notification.id)
+
         if widget.get_parent() is self._children_box:
             self._children_box.remove(widget)
+
+        if not self._widgets:
+            self._max_urgency = 0
+            self._latest_timestamp = 0.0
+        else:
+            if widget.urgency >= self._max_urgency:
+                self._max_urgency = max(w.urgency for w in self._widgets)
+            if widget.timestamp >= self._latest_timestamp:
+                self._latest_timestamp = max(w.timestamp for w in self._widgets)
+
         self._sync_header()
         self._refresh_height()
         if not self._widgets:
@@ -610,7 +657,7 @@ class NotificationGroup(AnimatedClippingBox):
         self._widgets.sort(key=self._sort_key, reverse=True)
 
     def _sort_key(self, w: NotificationWidget):
-        return (-w.urgency, -w.timestamp.timestamp())
+        return (-w.urgency, -w.timestamp)
 
     def _rebuild_children_box(self) -> None:
         for child in self._children_box.get_children():
@@ -630,7 +677,9 @@ class NotificationGroup(AnimatedClippingBox):
             self._toggle_btn.remove_style_class("critical")
 
         top = self._top_widget()
-        self.timestamp_label.set_label(self.latest_timestamp.strftime("%H:%M"))
+        self.timestamp_label.set_label(
+            datetime.fromtimestamp(self.latest_timestamp).strftime("%H:%M")
+        )
         if top:
             self._sync_icon(top._notification)
 
@@ -638,8 +687,6 @@ class NotificationGroup(AnimatedClippingBox):
         return self._widgets[0] if self._widgets else None
 
     def _sync_icon(self, notification, size: int = 28) -> None:
-        # keyed by notification id so repeated _sync_header calls
-        # on the same top widget don't re-resolve the icon.
         source_key = str(notification.id)
         if source_key == self._current_icon_source:
             return
@@ -649,6 +696,10 @@ class NotificationGroup(AnimatedClippingBox):
             self._icon_slot.remove(child)
 
         self._icon_slot.add(_resolve_app_icon(notification, size))
+
+    def get_icon(self):
+        # cached
+        return _resolve_app_icon(self._widgets[0]._notification, 18)
 
     def _refresh_height(self) -> None:
         if self._expanded:
