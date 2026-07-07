@@ -1,16 +1,16 @@
 certifi==2025.10.5
 cffi==2.0.0
 charset-normalizer==3.4.3
-click==8.1.8
+click==8.4.2
 expressive-shapes==0.2.0
-fabric @ git+https://github.com/Fabric-Development/fabric.git
+fabric @ git+https://github.com/Fabric-Development/fabric.git@b7b0f9975f0cf161ccf81c1adfb181230d553f79
 i3ipc==2.2.1
-idna==3.10
+idna==3.11
 loguru==0.7.3
 pillow==11.1.0
 psutil==7.0.0
 pulsectl==24.11.0
-pycairo==1.27.0
+pycairo==1.29.0
 pycparser==2.23
 PyGObject==3.50.0
 PyOpenGL==3.1.9
