@@ -32,7 +32,7 @@ class TopPill(Window, Service):
         super().__init__(
             name="pill",
             layer="top",
-            geometry="bottom",
+            geometry="top",
             type_hint="normal",
             margin=(0, 0, 0, 0),
             visible=True,

@@ -80,12 +80,22 @@ class ElasticStack(AnimatedScaleBox):
             return
 
         if self._last_visible is not None and self._last_visible is not incoming:
-            overshoot = (
-                1.20
-                if self._get_natural_area(incoming)
-                >= self._get_natural_area(self._last_visible)
-                else 0.80
-            )
+            incoming_area = self._get_natural_area(incoming)
+            last_area = self._get_natural_area(self._last_visible)
+
+            differ = max(incoming_area, last_area) / max(
+                min(last_area, incoming_area), 1e-5
+            )  # small epsilon to prevent ZeroDivisionError
+
+            if differ >= 1.8:
+                overshoot = 1.20 if incoming_area >= last_area else 0.80
+            else:
+                scale_factor = ((differ - 1.0) / (1.8 - 1.0)) ** 6
+                if incoming_area >= last_area:
+                    overshoot = 1.0 + (0.20 * scale_factor)
+                else:
+                    overshoot = 1.0 - (0.20 * scale_factor)
+
             duration_s = stack.get_transition_duration() / 1000.0
 
             # animate to overshoot over the same duration as the stack transition
