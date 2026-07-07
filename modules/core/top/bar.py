@@ -11,11 +11,12 @@ from widgets.clipping_box import ClippingBox
 from widgets.overrides import PatchedX11Window as Window
 from utils.helpers import toggle_class
 from utils.cursor import add_hover_cursor
+from config.config import config
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk  # noqa: E402
 
 SPACING = 0
 CONTROLS_SPACING = 5
@@ -28,7 +29,7 @@ class TopBar(Window):
         super().__init__(
             name="dock-bar",
             layer="top",
-            geometry="top",
+            geometry=f"{config.top_pill.POSITION.y}-{config.top_pill.POSITION.x}",
             type_hint="notification",
             visible=True,
             all_visible=True,

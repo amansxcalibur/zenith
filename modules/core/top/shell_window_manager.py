@@ -7,7 +7,7 @@ from services.animator import Animator
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk  # noqa: E402
 
 
 class ShellTopWindowManager:
@@ -81,12 +81,10 @@ class ShellTopWindowManager:
 
         if self.animator.playing:
             return
-        
+
         self._snap_pill(animate=False, fixed=True)
 
     def _set_dock_state(self, source, drag_state, x: int, y: int):
-        geo = self._get_monitor_geometry(self.pill)
-
         pill_is_in_dock_zone = (y) < (self.DOCK_HEIGHT)
 
         # TopBar handles update-only-if-changed internally
@@ -101,7 +99,6 @@ class ShellTopWindowManager:
         win_w, win_h = self.pill.get_size()
 
         dock_offset = self.DOCK_HEIGHT if self._is_dock_visible() else 0
-        available_height = geo.height - dock_offset
 
         # snap coordinates
         x_targets = {
@@ -120,18 +117,18 @@ class ShellTopWindowManager:
             target_x_name = min(x_targets, key=lambda k: abs(win_x - x_targets[k]))
             target_y_name = min(y_targets, key=lambda k: abs(win_y - y_targets[k]))
 
-            if self.pill._pos['x'] != target_x_name:
+            if self.pill._pos["x"] != target_x_name:
                 # CHANGES THE CONFIG!!
-                self.pill._pos['x'] = target_x_name
-                self.pill._pos['y'] = target_y_name
+                self.pill._pos["x"] = target_x_name
+                self.pill._pos["y"] = target_y_name
                 self.pill.update_controls_positions()
 
             target_x = x_targets[target_x_name]
             target_y = y_targets[target_y_name]
-        
+
         else:
-            target_x_name = self.pill._pos['x']
-            target_y_name = self.pill._pos['y']
+            target_x_name = self.pill._pos["x"]
+            target_y_name = self.pill._pos["y"]
 
             target_x = x_targets[target_x_name]
             target_y = y_targets[target_y_name]
@@ -145,8 +142,8 @@ class ShellTopWindowManager:
             "top-center": X11WindowGeometry.TOP,
             "top-right": X11WindowGeometry.TOP_RIGHT,
         }
-        new_geometry = f'top-{target_x_name}'
-        
+        new_geometry = f"top-{target_x_name}"
+
         # update geometry if changed
         if geometry_map.get(new_geometry) != self.top_bar.get_geometry():
             self.top_bar.set_geometry(new_geometry)

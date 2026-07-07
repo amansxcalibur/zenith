@@ -33,7 +33,7 @@ from .common import NotificationConfig
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gtk, GLib, GObject
+from gi.repository import GdkPixbuf, Gtk, GLib, GObject  # noqa: E402
 
 
 _icon_resolver: "IconResolver | None" = None

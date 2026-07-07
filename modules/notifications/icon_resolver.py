@@ -1,3 +1,5 @@
+# thankyou gummy (@muhchaudhary)
+
 import os
 import re
 import json
@@ -6,7 +8,7 @@ from loguru import logger
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk
+from gi.repository import GLib  # noqa: E402
 
 
 #TODO WIP
