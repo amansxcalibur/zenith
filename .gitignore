@@ -1,4 +1,4 @@
-# Virtual environments
+# Virtual environments and stubs
 venv/
 gengir/
 
@@ -17,6 +17,7 @@ gray/
 
 # Zenith config
 config/config.json
+styles/colors.css
 
 # data
 /data
