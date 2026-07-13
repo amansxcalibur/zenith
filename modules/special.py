@@ -18,7 +18,7 @@ from services.animator import Animator
 from utils.helpers import restart_shell
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk  # noqa: E402
 
 
 # too much overriding

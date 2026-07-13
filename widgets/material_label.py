@@ -4,7 +4,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Pango
+from gi.repository import Pango  # noqa: E402
 
 
 class VariableFontMixin:
