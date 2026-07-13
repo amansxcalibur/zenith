@@ -12,6 +12,8 @@ from modules.wiggle_bar import WigglyScale
 from modules.wallpaper import WallpaperService
 from services.volume_service import VolumeService
 from widgets.material_label import MaterialIconLabel
+from widgets.popup_window import PopSlot, FlyingOverlay
+from widgets.animated_scale import AnimatedScale
 from services.player_service import PlayerManager, PlayerService
 from utils.helpers import format_accel_to_keybind
 
@@ -22,7 +24,239 @@ from config.config import config
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib
+from gi.repository import GLib  # noqa: E402
+
+
+class PlayerAudioScaleMaterial3(AnimatedScale):
+    def __init__(self, service_instance, orientation="h", **kwargs):
+        super().__init__(
+            name="control-slider-mui",
+            orientation=orientation,
+            h_expand=True,
+            has_origin=True,
+            inverted=False if orientation == "h" else True,
+            style_classes="" if orientation == "h" else "vertical",
+            increments=(0.01, 0.01),
+            max_value=1.0,
+            min_value=0.0,
+            value=service_instance._player.props.volume,
+            **kwargs,
+        )
+        self.service_instance = service_instance
+        self.current = self.service_instance._player.props.volume
+        self.max = 1.0
+        self.percentage = self.current / self.max
+        self.update_from_user = False
+        self.ui_updating = False
+        self.service_instance._player.connect("volume", self.update_slider)
+        self.connect("change-value", self.set_audio)
+
+    def update_slider(self, source, new_value):
+        if self.ui_updating:
+            return
+
+        self.ui_updating = True
+        volume = new_value / self.max_value
+        if self.update_from_user:
+            self.set_value(volume)
+        else:
+            self.animate_value(volume)
+        self.update_from_user = False
+        self.ui_updating = False
+
+    def set_audio(self, source, scroll_type, value):
+        self.update_from_user = True
+        self.service_instance.set_volume(value)  # 0.0 to 1.0
+
+
+class PlayerSource(Button):
+    def __init__(self, service: PlayerService, volume_service: VolumeService, **kwargs):
+        super().__init__(name="source", on_clicked=self.handle_click, **kwargs)
+        self._service = service
+        self._volume_service = volume_service
+        self._player = service._player  # Playerctl.Player
+
+        self.toggle = False
+        self.quick_settings_slot = None  # stamped in by PopSlot
+
+        MAX_AUDIO_DEVICE_NAME_CHARS = 15
+        device_name = self._volume_service.get_current_device_name()
+
+        self.player_icon = Svg(
+            name=self._player.props.player_name,
+            size=24,
+            style_classes="player-icon",
+            svg_string=getattr(svg, self._player.props.player_name, svg.disc),
+        )
+        self.audio_device_label = Label(
+            label=device_name,
+            style="color: var(--shadow); font-size: 13px;",
+            max_chars_width=MAX_AUDIO_DEVICE_NAME_CHARS,
+            ellipsization="end",
+        )
+        self.audio_source = Box(
+            spacing=5,
+            name="source-name",
+            children=[
+                MaterialIconLabel(
+                    icon_text=icons.headphones.symbol(),
+                    wght=600,
+                    style="color: var(--shadow);",
+                ),
+                self.audio_device_label,
+            ],
+        )
+
+        self.full_device_label = Label(
+            h_align="start",
+            style_classes="full-device-name",
+            label=device_name,
+        )
+        self.volume_scale = PlayerAudioScaleMaterial3(service_instance=service)
+        self.image_container = Box(
+            style="background-position: center; background-size: cover; border-radius: 15px",
+            size=90,
+        )
+        self.menu_spacer = Box(
+            h_expand=True,
+            style="min-height: 2px; border-radius: 10px; background-color:grey;",
+        )
+        self.song = Label(
+            name="song",
+            label="song",
+            justification="left",
+            h_align="start",
+        )
+
+        self.artist = Label(
+            name="artist",
+            label="artist",
+            justification="left",
+            h_align="start",
+        )
+
+        self.music = Box(
+            name="music",
+            orientation="v",
+            h_expand=True,
+            v_expand=True,
+            v_align="end",
+            children=[self.song, self.artist],
+        )
+        self.player_menu = Box(
+            name="audio-source-menu",
+            orientation="v",
+            spacing=20,
+            children=[
+                Box(
+                    spacing=20,
+                    children=[
+                        self.image_container,
+                        Box(
+                            orientation="v",
+                            v_expand=True,
+                            children=[
+                                Box(
+                                    name="source-icon-container",
+                                    h_align="start",
+                                    spacing=6,
+                                    children=[
+                                        self.player_icon,
+                                        Label(label=self._player.props.player_name),
+                                    ],
+                                ),
+                                self.music,
+                            ],
+                        ),
+                    ],
+                ),
+                self.menu_spacer,
+                self.full_device_label,
+                self.volume_scale,
+            ],
+        )
+
+        self.audio_source_stack = Stack(
+            transition_duration=200,
+            transition_type="crossfade",
+            children=[self.audio_source, self.player_menu],
+            interpolate_size=True,
+        )
+        self.audio_source_stack.set_homogeneous(False)
+        self.add(self.audio_source_stack)
+
+        self._volume_service.connect(
+            "speaker-device-changed", self.on_audio_device_changed
+        )
+
+    def get_audio_source_widget(self) -> Box:
+        return self.audio_source
+
+    def get_audio_source_menu(self) -> Box:
+        return self.player_menu
+
+    def handle_click(self, *_):
+        if self.toggle:
+            self.toggle = False
+            self.audio_source_stack.set_visible_child(self.audio_source)
+            self.quick_settings_slot.dismiss()
+            return
+        self.toggle = True
+        self.audio_source_stack.set_visible_child(self.player_menu)
+        self.quick_settings_slot.pop_out()
+
+    def on_audio_device_changed(self, _service, *_args):
+        name = self._volume_service.get_current_device_name()
+        self.audio_device_label.set_label(name)
+        self.full_device_label.set_label(name)
+
+    def on_restored(self):
+        self.toggle = False
+        self.audio_source_stack.set_visible_child(self.audio_source)
+
+    def update_theme(self, theme_json):
+        primary_color = theme_json["colors"]["primary"]["dark"]["color"]
+        surface_container_high_color = theme_json["colors"]["surface_container_high"][
+            "dark"
+        ]["color"]
+        surface_bright_color = theme_json["colors"]["surface_bright"]["dark"]["color"]
+        surface_color = theme_json["colors"]["surface"]["dark"]["color"]
+
+        self.audio_source.set_style(f"background-color: {primary_color}")
+        self.player_menu.set_style(f"background-color: {surface_container_high_color}")
+        self.menu_spacer.set_style(
+            f"min-height: 2px; border-radius: 10px; background-color:{surface_bright_color};"
+        )
+        self.player_icon.set_style(f"color: {primary_color}")
+        self.volume_scale.set_style(
+            f"""
+                #control-slider-mui trough {{
+                    background-color: {surface_color};
+                }}
+                #control-slider-mui slider {{
+                    background-color: {primary_color};
+                    box-shadow: 0 0 0 4px {surface_container_high_color};
+                }}
+                #control-slider-mui:hover slider {{
+                    box-shadow: 1px 0 0 4px {surface_container_high_color};
+                }}
+                #control-slider-mui highlight {{
+                    border-radius: 8px 4px 4px 8px;
+                    background-color: {primary_color};
+                    box-shadow: 4px 0 0 4px {surface_container_high_color};
+                }}
+            """,
+            compile=False,  # no macros/vars here, skip the regex passes
+        )
+
+    def update_track_info(self, song, artist):
+        self.song.set_label(song)
+        self.artist.set_label(artist)
+
+    def update_artwork(self, art_path):
+        self.image_container.set_style(
+            f"background-position: center; background-size: cover; border-radius: 15px; background-image:url('{art_path}')"
+        )
 
 
 class Player(Box):
@@ -35,6 +269,8 @@ class Player(Box):
 
         self._volume_service = VolumeService()
         self._wallpaper_service = WallpaperService()
+
+        self._flying_overlay = FlyingOverlay.get_shared()
 
         MAX_CHARS = 30
         MAX_AUDIO_DEVICE_NAME_CHARS = 15
@@ -72,17 +308,8 @@ class Player(Box):
             max_chars_width=MAX_AUDIO_DEVICE_NAME_CHARS,
             ellipsization="end",
         )
-        self.audio_source = Box(
-            spacing=5,
-            name="source-name",
-            children=[
-                MaterialIconLabel(
-                    icon_text=icons.headphones.symbol(),
-                    wght=600,
-                    style="color: var(--shadow);",
-                ),
-                self.audo_device_label,
-            ],
+        self.audio_source = PlayerSource(
+            service=player_service, volume_service=self._volume_service
         )
 
         self.song = Label(
@@ -176,7 +403,11 @@ class Player(Box):
                         children=self.player_icon,
                     ),
                     Box(h_expand=True),
-                    self.audio_source,
+                    PopSlot(
+                        self.audio_source,
+                        overlay=self._flying_overlay,
+                        target_size=(320, 320),
+                    ),
                 ],
             ),
             Box(
@@ -254,7 +485,9 @@ class Player(Box):
         self._player_service.connect("theme-change", self._apply_theme)
         self._player_service.connect("artwork-change", self._apply_artwork)
 
-        self._volume_service.connect("speaker-device-changed", self.on_audio_device_changed)
+        self._volume_service.connect(
+            "speaker-device-changed", self.on_audio_device_changed
+        )
 
         self.connect("destroy", self.on_destroy)
 
@@ -299,6 +532,7 @@ class Player(Box):
             def _update_metadata_label():
                 self.song.set_label(song_title)
                 self.artist.set_label(artist_name)
+                self.audio_source.update_track_info(song_title, artist_name)
                 return False
 
             GLib.idle_add(_update_metadata_label)
@@ -308,7 +542,12 @@ class Player(Box):
         if self._wallpaper_signal_id:
             self._wallpaper_service.disconnect(self._wallpaper_signal_id)
             self._wallpaper_signal_id = None
-        GLib.idle_add(lambda: self.set_style(f"background-image:url('{art_path}')"))
+
+        def apply(art_path):
+            self.set_style(f"background-image:url('{art_path}')")
+            self.audio_source.update_artwork(art_path)
+
+        GLib.idle_add(lambda art_path: apply(art_path), art_path)
 
     def _apply_theme(self, source, theme_json):
         primary_color = theme_json["colors"]["primary"]["dark"]["color"]
@@ -316,7 +555,7 @@ class Player(Box):
         def _apply():
             self.play_pause_button.set_style(f"background-color: {primary_color}")
             self.player_icon.set_style(f"color: {primary_color}")
-            self.audio_source.set_style(f"background-color: {primary_color}")
+            self.audio_source.update_theme(theme_json)
 
         GLib.idle_add(_apply)
 
@@ -628,13 +867,23 @@ class PlayerContainer(Box):
     def _keybindings(self):
         player_bindings = config.bindings.modules.player
         return {
-            format_accel_to_keybind(player_bindings["player.play_pause"]): self.handle_play_pause,
+            format_accel_to_keybind(
+                player_bindings["player.play_pause"]
+            ): self.handle_play_pause,
             format_accel_to_keybind(player_bindings["player.prev"]): self.handle_prev,
-            format_accel_to_keybind(player_bindings["player.skip_backward"]): self.handle_skip_backward,
-            format_accel_to_keybind(player_bindings["player.skip_forward"]): self.handle_skip_forward,
+            format_accel_to_keybind(
+                player_bindings["player.skip_backward"]
+            ): self.handle_skip_backward,
+            format_accel_to_keybind(
+                player_bindings["player.skip_forward"]
+            ): self.handle_skip_forward,
             format_accel_to_keybind(player_bindings["player.next"]): self.handle_next,
-            format_accel_to_keybind(player_bindings["player.switch_next"]): lambda: self.switch_relative_player(True),
-            format_accel_to_keybind(player_bindings["player.switch_prev"]): lambda: self.switch_relative_player(False),
+            format_accel_to_keybind(player_bindings["player.switch_next"]): lambda: (
+                self.switch_relative_player(True)
+            ),
+            format_accel_to_keybind(player_bindings["player.switch_prev"]): lambda: (
+                self.switch_relative_player(False)
+            ),
         }
 
     def register_keybindings(self):

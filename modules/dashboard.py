@@ -14,13 +14,12 @@ from modules.tile import TileSpecial, TileSimple
 from modules.notifications.notification import NotificationTile
 from modules.player_mini import PlayerContainerMini
 from widgets.material_label import MaterialIconLabel
+from widgets.popup_window import PopSlot, FlyingOverlay
 
 import icons
 from config.config import config
-from utils.cursor import add_hover_cursor
 from utils.helpers import open_settings
-
-from loguru import logger
+from utils.cursor import add_hover_cursor
 
 
 class Dashboard(Box):
@@ -33,6 +32,7 @@ class Dashboard(Box):
             all_visible=True,
             **kwargs,
         )
+        self.flying_overlay = FlyingOverlay()
         self.wifi = Network()
         self.bluetooth = Bluetooth()
         self.mini_player = PlayerContainerMini()
@@ -102,8 +102,8 @@ class Dashboard(Box):
                 Box(
                     spacing=3,
                     children=[
-                        self.wifi,
-                        self.bluetooth,
+                        PopSlot (self.wifi, overlay=self.flying_overlay),
+                        PopSlot (self.bluetooth, overlay=self.flying_overlay),
                         self.mini_player_tile,
                     ],
                 ),
@@ -185,7 +185,10 @@ class Dashboard(Box):
                                     on_clicked=lambda *_: self.cycle_widgets(),
                                 )
                             ),
-                            Box(h_align="center", children=self.widget_stack_paginator_box),
+                            Box(
+                                h_align="center",
+                                children=self.widget_stack_paginator_box,
+                            ),
                         ],
                     ),
                 ],
@@ -227,32 +230,33 @@ class Dashboard(Box):
                     elem.close()
 
     def handle_tile_menu_expand(self, tile: str, toggle: bool, close: bool = False):
-        if toggle:
-            self.notification_container.set_reveal_child(False)
-        else:
-            self.notification_container.set_reveal_child(True)
+        ...
+        # if toggle:
+        #     self.notification_container.set_reveal_child(False)
+        # else:
+        #     self.notification_container.set_reveal_child(True)
 
-        rows = self.tiles.get_children()
-        for row in rows:
-            elems = row.get_children()
-            for elem in elems:
-                if elem.get_name() == tile:
-                    continue
+        # rows = self.tiles.get_children()
+        # for row in rows:
+        #     elems = row.get_children()
+        #     for elem in elems:
+        #         if elem.get_name() == tile:
+        #             continue
 
-                if toggle:
-                    try:
-                        elem.mini_view()
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to switch {elem.get_name()} to mini view: {e}"
-                        )
-                else:
-                    try:
-                        elem.maxi_view()
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to switch {elem.get_name()} to mini view: {e}"
-                        )
+        #         if toggle:
+        #             try:
+        #                 elem.mini_view()
+        #             except Exception as e:
+        #                 logger.error(
+        #                     f"Failed to switch {elem.get_name()} to mini view: {e}"
+        #                 )
+        #         else:
+        #             try:
+        #                 elem.maxi_view()
+        #             except Exception as e:
+        #                 logger.error(
+        #                     f"Failed to switch {elem.get_name()} to mini view: {e}"
+        #                 )
 
     def update_dots(self):
         current_widget = self.widget_stack.get_visible_child()

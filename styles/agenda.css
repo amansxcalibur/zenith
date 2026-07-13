@@ -48,6 +48,10 @@
   border-radius: 20px;
   padding: 5px 10px;
 }
+#text-editor selection {
+  background-color: var(--primary);
+  color: var(--shadow);
+}
 
 #add-new-agenda-btn {
   background-color: var(--primary);

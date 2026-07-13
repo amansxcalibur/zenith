@@ -15,7 +15,7 @@ from widgets.material_label import MaterialIconLabel
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk  # noqa: E402
 
 
 class TileSimple(ClippingBox):
@@ -201,17 +201,21 @@ class TileSimpleWithMenu(ClippingBox):
             h_expand=True,
         )
 
-        self.normal_view = TrueClippingBox(
+        self.normal_view = ClippingBox(
             style_classes="tile-clipper",
-            max_width=164,
-            children=Button(
+            h_expand=True,
+            children=TrueClippingBox(
+                max_width=164,
                 h_expand=True,
-                on_clicked=self.handle_menu_click,
-                child=Box(
-                    children=[
-                        self.icon_wrapper,
-                        self.content_revealer,
-                    ]
+                children=Button(
+                    h_expand=True,
+                    on_clicked=self.handle_menu_click,
+                    child=Box(
+                        children=[
+                            self.icon_wrapper,
+                            self.content_revealer,
+                        ]
+                    ),
                 ),
             ),
         )
@@ -250,11 +254,21 @@ class TileSimpleWithMenu(ClippingBox):
                             self.menu_close_btn,
                         ],
                     ),
+                    Box(
+                        h_align="center",
+                        style="min-width: 170px; min-height: 4px; border-radius: 10px; background-color:var(--surface); margin: 10px 0; ",
+                    ),
                 ]
                 + (
                     [menu_children]
                     if menu_children
-                    else [Label(label="No options available")]
+                    else [
+                        Label(
+                            v_expand=True,
+                            v_align="center",
+                            label="No options available",
+                        )
+                    ]
                 )
             ),
         )
@@ -281,11 +295,14 @@ class TileSimpleWithMenu(ClippingBox):
             self.menu.add_style_class("contract")
             self.menu.remove_style_class("expand")
             self.stack.set_visible_child(self.overlay)
+            self.get_parent().get_parent().get_parent().get_parent().get_parent().dismiss()
+            return
         else:
             self.toggle = True
             self.stack.set_visible_child(self.menu)
             self.menu.add_style_class("expand")
             self.menu.remove_style_class("contract")
+            self.get_parent().pop_out()
 
         name = self.get_name()
         if name:
@@ -325,6 +342,16 @@ class TileSimpleWithMenu(ClippingBox):
 
     def reveal_status_widget(self):
         self.status_label_widget_revealer.reveal()
+
+    def get_expanded_size(self):
+        return [self.menu.get_preferred_width()[1], self.menu.get_preferred_height()[1]]
+
+    def on_restored(self):
+        self.toggle = False
+        self.menu.add_style_class("contract")
+        self.menu.remove_style_class("expand")
+        self.stack.set_visible_child(self.overlay)
+        self.maxi_view()
 
 
 class Tile(ClippingBox):
@@ -390,13 +417,18 @@ class Tile(ClippingBox):
             h_expand=True,
         )
 
-        self.normal_view = TrueClippingBox(
+        self.normal_view = Box(
             style_classes="tile-clipper",
-            max_width=164,
-            children=[
-                self.icon_wrapper,
-                self.content_button,
-            ],
+            h_expand=True,
+            children=TrueClippingBox(
+                style_classes="tile-clipper",
+                max_width=164,
+                h_expand=True,
+                children=[
+                    self.icon_wrapper,
+                    self.content_button,
+                ],
+            ),
         )
         box_shadow_overlay = Box(style_classes="tile-overlay")
         self.overlay = Overlay(
@@ -432,6 +464,10 @@ class Tile(ClippingBox):
                             ),
                             self.menu_close_btn,
                         ],
+                    ),
+                    Box(
+                        h_align="center",
+                        style="min-width: 170px; min-height: 4px; border-radius: 10px; background-color:var(--surface); margin: 10px 0; ",
                     ),
                 ]
                 + ([menu_children] if menu_children else [Label(label="Options")])
@@ -471,11 +507,13 @@ class Tile(ClippingBox):
             self.menu_box.add_style_class("contract")
             self.menu_box.remove_style_class("expand")
             self.stack.set_visible_child(self.overlay)
+            self.get_parent().get_parent().get_parent().get_parent().get_parent().dismiss()
         else:
             self.toggle = True
             self.stack.set_visible_child(self.menu_box)
             self.menu_box.add_style_class("expand")
             self.menu_box.remove_style_class("contract")
+            self.get_parent().pop_out()
 
         name = self.get_name()
         if name:
@@ -505,6 +543,19 @@ class Tile(ClippingBox):
 
     def reveal_status_widget(self):
         self.status_label_widget_revealer.reveal()
+
+    def get_expanded_size(self):
+        return [
+            self.menu_box.get_preferred_width()[1],
+            self.menu_box.get_preferred_height()[1],
+        ]
+
+    def on_restored(self):
+        self.toggle = False
+        self.menu_box.add_style_class("contract")
+        self.menu_box.remove_style_class("expand")
+        self.stack.set_visible_child(self.overlay)
+        self.maxi_view()
 
 
 class TileSpecial(Box):

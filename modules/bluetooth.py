@@ -18,7 +18,7 @@ from utils.cursor import add_hover_cursor
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk  # noqa: E402
 
 WINDOW_MAX_WIDTH = 250
 WINDOW_MAX_HEIGHT = 250
@@ -81,7 +81,7 @@ class BluetoothDeviceSlot(CenterBox):
         self.device.connect("notify::closed", lambda *_: self.destroy())
 
         self.connection_label = Label(
-            name="bt-dev-connection-label", label="Disconnected"
+            name="bt-dev-connection-label", h_align="start", label="Disconnected"
         )
 
         self.connect_button = Button(
@@ -132,7 +132,7 @@ class BluetoothDeviceSlot(CenterBox):
         self.connection_label.set_label(
             "Connected" if self.device.connected else "Disconnected"
         )
-        self.forget_button.set_visible(self.device.paired)
+        # self.forget_button.set_visible(self.device.paired)
 
         if self.device.connecting:
             self.connect_button.set_label("...")

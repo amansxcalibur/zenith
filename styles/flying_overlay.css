@@ -1,0 +1,7 @@
+#flying-tile {
+  transition: background-color 0.3s linear;
+  background-color: alpha(var(--shadow), 0);
+}
+#flying-tile.darken {
+  background-color: alpha(var(--shadow), 0.4);
+}

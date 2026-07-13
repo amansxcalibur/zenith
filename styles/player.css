@@ -80,12 +80,12 @@
   /* min-height: 24px; */
 }
 
-#source-icon-container{
+#source-icon-container {
   min-height: 24px;
   min-width: 24px;
 }
 
-#source-icon-container.mini{
+#source-icon-container.mini {
   min-height: 20px;
   min-width: 20px;
   box-shadow: 0 0 5px 3px rgba(255, 255, 255, 0.6);
@@ -177,7 +177,7 @@
   padding: 0px 8px;
 }
 
-#shuffle-button{
+#shuffle-button {
   min-width: 20px;
 }
 
@@ -262,4 +262,10 @@
   margin-left: -70px;
   margin-bottom: -20px;
   margin-right: -20px;
+}
+
+/* player source */
+#audio-source-menu {
+  border-radius: 25px;
+  padding: 20px;
 }

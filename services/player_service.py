@@ -17,14 +17,14 @@ from config.info import TEMP_DIR, ROOT_DIR
 import gi
 
 gi.require_version("Playerctl", "2.0")
-from gi.repository import Playerctl, GLib, Gio
+from gi.repository import Playerctl, GLib, Gio  # noqa: E402
 
 
 def check_shuffle_strictly(bus_name):
     # setup D-Bus proxy
     connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
-    # We call 'Get' on the standard Properties interface
+    # call 'Get' on the standard Properties interface
     # Param 1: interface name ('org.mpris.MediaPlayer2.Player')
     # Param 2: property name ('Shuffle')
     params = GLib.Variant("(ss)", ("org.mpris.MediaPlayer2.Player", "Shuffle"))
@@ -146,7 +146,7 @@ class PlayerService(Service):
 
     def get_artwork(self) -> str:
         return self._current_artwork_path
-    
+
     def get_blurred240x60_artwork(self) -> str:
         return self._current_blurred_artwork_path
 
@@ -463,7 +463,6 @@ class PlayerManager(Service):
                 self._create_and_register_player(player_obj)
 
     def _create_and_register_player(self, name_obj):
-        """Create PlayerService and register it"""
         name_str = name_obj.name
 
         # avoid duplicate registration
