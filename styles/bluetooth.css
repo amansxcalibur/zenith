@@ -38,6 +38,7 @@
 #bt-connect-btn{
     padding: 0px 14px;
     border-radius: 50px;
+    background-color: var(--surface-semi-bright);
 }
 
 #bt-connect-btn:hover{

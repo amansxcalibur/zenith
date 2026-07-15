@@ -14,7 +14,7 @@ from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk  # noqa: E402
 
 ALL_MODULES_MAPPING = {
     "vertical_toggle_btn": "Vertical Toggle Btn",

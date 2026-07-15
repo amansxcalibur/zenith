@@ -15,7 +15,7 @@ from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk  # noqa: E402
 
 
 class I3Tab(BaseWidget, SectionBuilderMixin):
@@ -53,27 +53,86 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
             )
         )
 
+        self.corner_demo = Box(
+            name="i3-settings-demo-window",
+            style_classes="corner-demo",
+        )
+        self.container.add(
+            Box(
+                h_expand=True,
+                spacing=30,
+                children=[
+                    LayoutBuilder.section(
+                        "Corner",
+                        [
+                            Box(
+                                spacing=30,
+                                children=[
+                                    Box(
+                                        orientation="v",
+                                        h_expand=True,
+                                        spacing=10,
+                                        children=[
+                                            Box(
+                                                h_expand=True,
+                                                children=[
+                                                    Label(
+                                                        label="Enable",
+                                                        style_classes="section-subheading",
+                                                        h_align="start",
+                                                        h_expand=True,
+                                                    ),
+                                                    self._create_switch(
+                                                        state_path=[
+                                                            "corners",
+                                                            "enabled",
+                                                        ]
+                                                    ),
+                                                ],
+                                            ),
+                                            self._create_i3_controls(
+                                                "Corner Radius",
+                                                0,
+                                                50,
+                                                self._on_corner_radius_changed,
+                                                state.get(
+                                                    ["corners", "props", "radius"]
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    )
+                    .build()
+                    .set_hexpand(True)
+                    .unwrap(),
+                    self.corner_demo,
+                ],
+            )
+        )
+
         self.demo_container = Box(name="module-drop-box", size=(-1, 400), spacing=10)
 
         self.demo_window_left = self._create_demo_window(is_active=True)
         self.demo_window_right_top = self._create_demo_window(is_active=False)
         self.demo_window_right_bottom = self._create_demo_window(is_active=False)
 
-        self.demo_inner_stack = Box(spacing=10, h_expand=True, v_expand=True, orientation="v")
+        self.demo_inner_stack = Box(
+            spacing=10, h_expand=True, v_expand=True, orientation="v"
+        )
         self.demo_inner_stack.children = [
             self.demo_window_right_top,
             self.demo_window_right_bottom,
         ]
-        
-        self.demo_container.children = [
-            self.demo_window_left,
-            self.demo_inner_stack
-        ]
+
+        self.demo_container.children = [self.demo_window_left, self.demo_inner_stack]
 
         self.all_windows_list = [
-            self.demo_window_left, 
-            self.demo_window_right_top, 
-            self.demo_window_right_bottom
+            self.demo_window_left,
+            self.demo_window_right_top,
+            self.demo_window_right_bottom,
         ]
 
         self.container.add(
@@ -107,7 +166,9 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
                                         0,
                                         10,
                                         self._on_border_width_changed,
-                                        state.get(["i3", "borders", "props", "border_width"]),
+                                        state.get(
+                                            ["i3", "borders", "props", "border_width"]
+                                        ),
                                     ),
                                     Box(
                                         children=[
@@ -186,7 +247,12 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
         )
 
     def _create_i3_controls(
-        self, label: str, min_val: float, max_val: float, callback, initial_val=30
+        self,
+        label: str,
+        min_val: float,
+        max_val: float,
+        callback: callable,
+        initial_val=30,
     ):
         value_label = Label(
             label=f"{int(initial_val)}px", style_classes="slider-value-label"
@@ -209,7 +275,7 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
                 callback(s)
 
         scale.connect("value-changed", on_value_changed)
-        scale.connect('map', lambda: callback(scale))
+        scale.connect("map", lambda: callback(scale))
 
         return Box(
             h_expand=True,
@@ -299,14 +365,23 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
         self.demo_container.set_style(f"padding: {val}px;")
         state.update(["i3", "gaps", "props", "outer"], val)
 
-    def _on_border_width_changed(self, scale):    
+    def _on_border_width_changed(self, scale):
         val = int(scale.get_value())
 
         for window in self.all_windows_list:
-            color = "var(--primary)" if "active" in window.get_style_context().list_classes() else "var(--surface-bright)"
+            color = (
+                "var(--primary)"
+                if "active" in window.get_style_context().list_classes()
+                else "var(--surface-bright)"
+            )
             window.get_children()[0].set_style(f"border: {val}px solid {color};")
 
         state.update(["i3", "borders", "props", "border_width"], val)
+
+    def _on_corner_radius_changed(self, scale):
+        val = int(scale.get_value())
+        self.corner_demo.set_style(f"border-radius: {val}px")
+        state.update(["corners", "props", "radius"], val)
 
     def _create_demo_window(self, is_active=False):
         window = Box(
@@ -316,25 +391,32 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
             v_expand=True,
         )
 
-        event_box = EventBox(child=window,h_expand=True,
-            v_expand=True,)
-        
-        event_box.connect("enter-notify-event", lambda *_: self._set_window_active(window))
-        
+        event_box = EventBox(
+            child=window,
+            h_expand=True,
+            v_expand=True,
+        )
+
+        event_box.connect(
+            "enter-notify-event", lambda *_: self._set_window_active(window)
+        )
+        event_box.connect(
+            "leave-notify-event", lambda *_: self._set_window_active(window, False)
+        )
+
         return event_box
 
-    def _set_window_active(self, target_window):
+    def _set_window_active(self, target_window, active: bool = True):
         border_width = state.get(["i3", "borders", "props", "border_width"])
 
-        for event_box in self.all_windows_list:
-            demo_window = event_box.get_child()
-            if demo_window == target_window:
-                demo_window.add_style_class("active")
-                demo_window.set_style(f"border: {border_width}px solid var(--primary);")
-            else:
-                demo_window.remove_style_class("active")
-                demo_window.set_style(f"border: {border_width}px solid var(--surface-bright);")
-
+        if active:
+            target_window.add_style_class("active")
+            target_window.set_style(f"border: {border_width}px solid var(--primary);")
+        else:
+            target_window.remove_style_class("active")
+            target_window.set_style(
+                f"border: {border_width}px solid var(--surface-bright);"
+            )
 
     def _on_toggle(self, switch, pspec, path):
         state.update(path, switch.get_active())
