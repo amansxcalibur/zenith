@@ -14,18 +14,27 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 LOCKSCREEN_RESOURCE_DIR = Path(CACHE_DIR) / "lockscreen"
 LOCKSCREEN_IMG_FILE = LOCKSCREEN_RESOURCE_DIR / "lockscreen.png"
 
+
 def lock_screen():
+    import os
+
     if config.system.LOCKSCREEN == "zenith":
-        lock_path = ROOT_DIR / "lock.py"
+        current_env = os.environ.copy()
+        current_env["PYTHONPATH"] = (
+            str(ROOT_DIR) + os.pathsep + current_env.get("PYTHONPATH", "")
+        )
+
+        lock_path = ROOT_DIR / "lock"
 
         if lock_path.exists():
             subprocess.Popen(
-                [sys.executable, str(lock_path)],
+                [sys.executable, "-m", "lock"],
+                env=current_env,
                 start_new_session=True,
             )
-
     else:
         lock_with_i3lock()
+
 
 def get_cached_lockscreen(
     wallpaper: Path,
@@ -48,6 +57,7 @@ def get_cached_lockscreen(
 
 def lock_with_i3lock() -> None:
     from modules.wallpaper import WallpaperService
+
     wallpaper = Path(WallpaperService().get_wallpaper_path())
     cached_img = get_cached_lockscreen(wallpaper)
 
