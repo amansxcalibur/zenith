@@ -21,6 +21,15 @@ from gi.repository import Playerctl, GLib, Gio  # noqa: E402
 
 
 def check_shuffle_strictly(bus_name):
+    if not bus_name:
+        return False
+        
+    if not bus_name.startswith("org.mpris.MediaPlayer2."):
+        bus_name = f"org.mpris.MediaPlayer2.{bus_name}"
+
+    if not Gio.dbus_is_name(bus_name):
+        return False
+    
     # setup D-Bus proxy
     connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
