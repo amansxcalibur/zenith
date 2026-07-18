@@ -22,7 +22,7 @@ from config.info import DATA_DIR, CACHE_DIR
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, Pango, GdkPixbuf
+from gi.repository import Gtk, Gdk, Pango, GdkPixbuf  # noqa: E402
 
 
 DATA_FILE = os.path.join(DATA_DIR, "agenda.json")
@@ -109,6 +109,14 @@ class AgendaItem(Gtk.ListBoxRow):
 
     def _build_editor(self):
         self.text_view = _make_text_view()
+
+        def force_focus(widget, event):
+            widget.grab_focus()
+            return True  # stops event from bubbling up to the EventBox/Stack
+
+        self.text_view.connect("button-press-event", force_focus)
+        self.text_view.connect("button-release-event", force_focus)
+
         editor_actions = Box(
             spacing=5,
             children=[
@@ -303,14 +311,20 @@ class AgendaApp(Box):
 
         self.new_text_view = Gtk.TextView(name="text-editor")
         self.new_text_view.set_wrap_mode(Gtk.WrapMode.WORD)
-        self.new_text_view.set_size_request(-1, 80)
+        self.scrolled_window = ScrolledWindow(
+            h_scrollbar_policy="never",
+            v_scrollbar_policy="automatic",
+            min_content_size=(-1, 80),
+            max_content_size=(-1, 150),
+            child=self.new_text_view
+        )
 
         editor_box = Box(
             name="editor-box",
             orientation="v",
             spacing=6,
             children=[
-                self.new_text_view,
+                self.scrolled_window,
                 Box(
                     spacing=6,
                     children=[
@@ -387,18 +401,26 @@ class AgendaApp(Box):
     def load_from_disk(self):
         if not os.path.exists(DATA_FILE):
             return
-        # try:
-        with open(DATA_FILE) as f:
-            for item in reversed(json.load(f)):
+
+        try:
+            with open(DATA_FILE) as f:
+                data = json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to read or parse agenda file: {e}")
+            return
+
+        for item in reversed(data):
+            try:
                 text = item if isinstance(item, str) else item.get("text")
                 img = None if isinstance(item, str) else item.get("image")
                 # add to the beginning
                 self.listbox.prepend(
                     AgendaItem(text, self._remove_item, self.save_to_disk, img)
                 )
+            except Exception as e:
+                logger.error(f"Error loading agenda item ({item}): {e}")
+
         self.show_all()
-        # except Exception as e:
-        #     logger.error(f"Error loading agenda: {e}")
 
     def save_to_disk(self):
         os.makedirs(DATA_DIR, exist_ok=True)
