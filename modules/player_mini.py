@@ -215,7 +215,7 @@ class PlayerMini(Box):
 
         # init artwork
         current_artwork = self._player_service.get_artwork()
-        current_blurred_artwork = self._player_service.get_blurred240x60_artwork()
+        current_blurred_artwork = self._player_service.get_blurred_240x60_artwork()
         if current_artwork:
             self._apply_artwork(
                 self._player_service, current_artwork, current_blurred_artwork

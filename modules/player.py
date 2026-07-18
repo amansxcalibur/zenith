@@ -15,10 +15,12 @@ from widgets.material_label import MaterialIconLabel
 from widgets.popup_window import PopSlot, FlyingOverlay
 from widgets.animated_scale import AnimatedScale
 from services.player_service import PlayerManager, PlayerService
+from utils.colors import get_css_variable
 from utils.helpers import format_accel_to_keybind
 
 import svg
 import icons
+from config.info import ROOT_DIR
 from config.config import config
 
 import gi
@@ -95,8 +97,8 @@ class PlayerSource(Button):
             ellipsization="end",
         )
         self.audio_source = Box(
-            spacing=5,
             name="source-name",
+            spacing=5,
             children=[
                 MaterialIconLabel(
                     icon_text=icons.headphones.symbol(),
@@ -115,6 +117,7 @@ class PlayerSource(Button):
         self.volume_scale = PlayerAudioScaleMaterial3(service_instance=service)
         self.image_container = Box(
             style="background-position: center; background-size: cover; border-radius: 15px",
+            v_align="start",
             size=90,
         )
         self.menu_spacer = Box(
@@ -125,6 +128,7 @@ class PlayerSource(Button):
             name="song",
             label="song",
             justification="left",
+            line_wrap="word",
             h_align="start",
         )
 
@@ -132,6 +136,7 @@ class PlayerSource(Button):
             name="artist",
             label="artist",
             justification="left",
+            line_wrap="word",
             h_align="start",
         )
 
@@ -215,12 +220,23 @@ class PlayerSource(Button):
         self.audio_source_stack.set_visible_child(self.audio_source)
 
     def update_theme(self, theme_json):
-        primary_color = theme_json["colors"]["primary"]["dark"]["color"]
-        surface_container_high_color = theme_json["colors"]["surface_container_high"][
-            "dark"
-        ]["color"]
-        surface_bright_color = theme_json["colors"]["surface_bright"]["dark"]["color"]
-        surface_color = theme_json["colors"]["surface"]["dark"]["color"]
+        if theme_json:
+            primary_color = theme_json["colors"]["primary"]["dark"]["color"]
+            surface_container_high_color = theme_json["colors"][
+                "surface_container_high"
+            ]["dark"]["color"]
+            surface_bright_color = theme_json["colors"]["surface_bright"]["dark"][
+                "color"
+            ]
+            surface_color = theme_json["colors"]["surface"]["dark"]["color"]
+        else:
+            colors_path = f"{ROOT_DIR}/styles/colors.css"
+            primary_color = get_css_variable(colors_path, "--primary")
+            surface_container_high_color = get_css_variable(
+                colors_path, "--surface-semi-bright"
+            )
+            surface_bright_color = get_css_variable(colors_path, "--surface-bright")
+            surface_color = get_css_variable(colors_path, "--surface")
 
         self.audio_source.set_style(f"background-color: {primary_color}")
         self.player_menu.set_style(f"background-color: {surface_container_high_color}")
@@ -406,7 +422,7 @@ class Player(Box):
                     PopSlot(
                         self.audio_source,
                         overlay=self._flying_overlay,
-                        target_size=(320, 320),
+                        target_size=(346, 320),
                     ),
                 ],
             ),
@@ -503,6 +519,8 @@ class Player(Box):
         current_theme = self._player_service.get_theme()
         if current_theme:
             self._apply_theme(self._player_service, current_theme)
+        else:
+            self.audio_source.update_theme({})
 
     def on_update_track_position(self, sender, pos, dur):
         if dur == 0:

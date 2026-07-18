@@ -156,7 +156,7 @@ class PlayerService(Service):
     def get_artwork(self) -> str:
         return self._current_artwork_path
 
-    def get_blurred240x60_artwork(self) -> str:
+    def get_blurred_240x60_artwork(self) -> str:
         return self._current_blurred_artwork_path
 
     def get_theme(self):

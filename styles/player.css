@@ -76,9 +76,9 @@
   margin-top: 5px;
 }
 
-#source {
-  /* min-height: 24px; */
-}
+/* #source {
+  min-height: 24px;
+} */
 
 #source-icon-container {
   min-height: 24px;
@@ -111,9 +111,9 @@
   margin-bottom: -5px;
   min-height: 36px;
 }
-#controls.mini {
-  /* margin-bottom: -5px; */
-}
+/* #controls.mini {
+  margin-bottom: -5px;
+} */
 
 #play-next,
 #play-previous {
