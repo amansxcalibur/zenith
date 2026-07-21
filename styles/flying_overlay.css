@@ -5,3 +5,8 @@
 #flying-tile.darken {
   background-color: alpha(var(--shadow), 0.4);
 }
+
+.fade-out {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+}

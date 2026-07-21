@@ -34,6 +34,7 @@ class PopSlot(Box):
     # called by the child
     def pop_out(self):
         expanded_factory = getattr(self.child, "build_expanded_content", None)
+        # not using size groups, cuz I'm not dealing with dynamic ones yet
         self.target_size = (
             self.child.get_expanded_size()
             if hasattr(self.child, "get_expanded_size")
@@ -138,6 +139,7 @@ class FlyingOverlay(Window, Service):
         self._size_watch_handle = None
         self._pending_resize = None
         self.add_keybinding("Escape", lambda *_: self.dismiss())
+        self.connect("focus-out-event", lambda *_: self.dismiss())
 
     def _on_background_click(self, _widget, event):
         if self.source_slot is None:
@@ -233,7 +235,7 @@ class FlyingOverlay(Window, Service):
             self._size_watch_handle = None
 
     def _on_content_resized(self, widget, alloc):
-        new_w, new_h = alloc.width, alloc.height
+        new_w, new_h = widget.get_preferred_width()[1], widget.get_preferred_height()[1]
         if (new_w, new_h) == (self.curr_w, self.curr_h):
             return
 
@@ -264,11 +266,22 @@ class FlyingOverlay(Window, Service):
 
             self.set_pass_through(True)
             self.flying_container.remove_style_class("darken")
-            self._animate_to(
-                start=(self.curr_x, self.curr_y, self.curr_w, self.curr_h),
-                target=(self.orig_x, self.orig_y, self.orig_w, self.orig_h),
-                on_complete=self._finish_dismiss,
-            )
+
+            should_seek = not self.source_slot.get_mapped() # fails when slot is in mid-transition
+
+            if should_seek:
+                self.add_style_class("fade-out")
+                self._animate_to(
+                    start=(self.curr_x, self.curr_y, self.curr_w, self.curr_h),
+                    target=(self.curr_x, self.curr_y, 0, 0),
+                    on_complete=self._finish_dismiss,
+                )
+            else:
+                self._animate_to(
+                    start=(self.curr_x, self.curr_y, self.curr_w, self.curr_h),
+                    target=(self.orig_x, self.orig_y, self.orig_w, self.orig_h),
+                    on_complete=self._finish_dismiss,
+                )
 
         if self.content_stack.get_visible_child_name() == "expanded":
             self.content_stack.set_visible_child_name("collapsed")
@@ -282,6 +295,8 @@ class FlyingOverlay(Window, Service):
     def _finish_dismiss(self):
         slot = self.source_slot
         self._unwatch_content_size()
+
+        self.remove_style_class("fade-out")
 
         gdk_window = self.source_widget.get_window()
         # TODO: this shit doesn't work :(

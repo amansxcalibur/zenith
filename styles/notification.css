@@ -60,7 +60,7 @@
   background-color: alpha(var(--surface-semi-bright), 0.8);
   border-radius: 30px;
   min-height: 60px;
-  padding: 0px 8px;
+  padding: 0px 9px;
 }
 
 #notification-reveal-btn {

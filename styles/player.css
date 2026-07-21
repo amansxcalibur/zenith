@@ -268,4 +268,6 @@
 #audio-source-menu {
   border-radius: 25px;
   padding: 20px;
+  min-width: 280px;
+  min-height: 320px;
 }
