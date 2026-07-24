@@ -1,9 +1,4 @@
-#corner{
-    background-color: black;
-    color: black;
-}
-
- #all-corners{
-    min-width: 1920px;
-    min-height: 1080px;
+#corner {
+  background-color: black;
+  color: black;
 }

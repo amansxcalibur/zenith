@@ -3,6 +3,8 @@ from fabric.widgets.shapes import Corner
 
 from widgets.overrides import PatchedX11Window as Window
 
+from gi.repository import Gdk
+
 
 class MyCorner(Box):
     def __init__(self, corner, radius: int):
@@ -19,20 +21,22 @@ class MyCorner(Box):
 class Corners(Window):
     def __init__(self, radius: int):
         super().__init__(
-            name="notch",
             layer="top",
             geometry="top",
             type_hint="normal",
             focusable=False,
-            margin="-8px -4px -8px -4px",
             visible=True,
             pass_through=True,
             all_visible=True,
-            opacity=0.5,
         )
 
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitor_at_window(self.get_window())
+        geo = monitor.get_geometry()
+
+        self.set_size_request(geo.width, geo.height)
+
         self.all_corners = Box(
-            name="all-corners",
             orientation="v",
             pass_through=True,
             focusable=False,
