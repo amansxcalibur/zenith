@@ -1,10 +1,16 @@
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
+from fabric.widgets.scale import Scale
 from fabric.widgets.button import Button
 from widgets.material_label import MaterialIconLabel, MaterialFontLabel
 
 import icons
 from ..base import BaseWidget, SliderConfig, SliderControlMixin, LayoutBuilder
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa: E402
 
 
 class IconVariationsTab(BaseWidget, SliderControlMixin):
@@ -65,7 +71,7 @@ class IconVariationsTab(BaseWidget, SliderControlMixin):
             icon_text=icons.home.symbol(), font_size=64, fill=1, wght=400
         )
         icon_box = Box(
-            orientation="v", style="min-width: 200px", children=self.icon_widget
+            orientation="v", style="min-width: 140px", children=self.icon_widget
         )
 
         # Create sliders using mixin
@@ -95,7 +101,7 @@ class IconVariationsTab(BaseWidget, SliderControlMixin):
         )
 
     def _create_icon_selector(self):
-        icon_box = Box(name="config-path-box", h_align="start")
+        icon_box = Box(name="config-path-box", style="margin-top: 4px", h_align="start")
         icon_box.add(Label(label="Icons:", style="margin-right: 10px"))
 
         for icon_char in self.DEMO_ICONS:
@@ -143,20 +149,66 @@ class FontVariationsTab(BaseWidget, SliderControlMixin):
         self.font_label = MaterialFontLabel("WOW", font_size=64, fill=1, wght=400)
         box.pack_start(self.font_label, False, False, 10)
 
-        self.lock_btn = Button(label="Lock OFF", on_clicked=self._toggle_lock)
-        box.pack_start(self.lock_btn, False, False, 0)
+        lock_switch = Gtk.Switch(name="matugen-switcher", active=False)
+        lock_switch.set_valign(Gtk.Align.CENTER)
+        lock_switch.connect("notify::active", self._toggle_lock)
 
-        self.master_scale = LayoutBuilder.labeled_slider(
-            box, "master", 0, 100, 1, 0, self._update_font
+        self.master_scale = Scale(
+            name="control-slider-mui",
+            style_classes=["variation-scale"],
+            orientation="h",
+            min_value=0,
+            max_value=100,
+            increments=(1, 1),
+            h_expand=True,
+        )
+        self.master_scale.set_value(0)
+
+        if self._update_font:
+            self.master_scale.connect("value-changed", self._update_font)
+
+        box.pack_start(
+            Box(
+                spacing=14,
+                children=[
+                    Box(
+                        spacing=10,
+                        children=[
+                            Label(
+                                style_classes=["variation-type-label"], label="master"
+                            ),
+                            lock_switch,
+                        ],
+                    ),
+                    self.master_scale,
+                ],
+            ),
+            False,
+            False,
+            0,
+        )
+
+        box.pack_start(
+            Label(
+                label="Variations",
+                style_classes="section-subheading",
+                style="margin: 4px 0;",
+                h_align="start",
+                h_expand=True,
+            ),
+            False,
+            False,
+            0,
         )
 
         self.create_sliders(box, self.SLIDER_CONFIGS, self._update_font)
 
+        self.bind_group_toggle(lock_switch, self.scales.values())
+
         self.container = LayoutBuilder.section("Font Variation Demo", box)
 
-    def _toggle_lock(self, button):
-        self.locked = not self.locked
-        button.set_label("Lock ON" if self.locked else "Lock OFF")
+    def _toggle_lock(self, switch, pspec):
+        self.locked = switch.get_active()
         self._update_font(None)
 
     def _update_font(self, widget):
@@ -196,3 +248,14 @@ class FontVariationsTab(BaseWidget, SliderControlMixin):
         return int(
             scale.min_value + master_val * (scale.max_value - scale.min_value) / 100
         )
+
+    def bind_group_toggle(self, switch, targets):
+        def apply(active):
+            self.master_scale.set_sensitive(not active)
+            self.master_scale.set_opacity(1.0 if not active else 0.4)
+            for w in targets:
+                w.set_sensitive(active)
+                w.set_opacity(1.0 if active else 0.4)
+
+        apply(not switch.get_active())
+        switch.connect("notify::active", lambda s, _p: apply(not s.get_active()))

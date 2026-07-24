@@ -1,13 +1,13 @@
-#resolver-container {
-  /* background-color: var(--surface-dull);
+/* #resolver-container {
+  background-color: var(--surface-dull);
   padding: 20px;
   margin: 0px;
   min-width: 400px;
-  border-radius: 20px; */
-}
+  border-radius: 20px;
+} */
 
 .variation-type-label {
-  min-width: 80px;
+  min-width: 70px;
 }
 
 #control-slider-mui.variation-scale highlight,
@@ -70,12 +70,12 @@
   border-radius: 25px;
 }
 
-.settings-option-btn.checked > * > * {
-  /* color: var(--surface); */
-}
+/* .settings-option-btn.checked > * > * {
+  color: var(--surface);
+} */
 
-.settings-option-label {
-}
+/* .settings-option-label {
+} */
 
 #notebook header {
   all: unset;
@@ -107,9 +107,9 @@
   color: var(--on-primary);
 }
 
-.settings-section-container {
-  /* margin-bottom: 10px; */
-}
+/* .settings-section-container {
+  margin-bottom: 10px;
+} */
 
 .settings-list-container {
   border-radius: 20px;

@@ -13,7 +13,7 @@ from widgets.material_label import MaterialFontLabel
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk  # noqa: E402
 
 
 class BaseWidget(ABC):
@@ -40,7 +40,7 @@ class LayoutBuilder:
         heading: str,
         body: Gtk.Widget | Iterable[Gtk.Widget],
         heading_size: int = 18,
-        orientation: str = 'v',
+        orientation: str = "v",
     ) -> EventBox:
         box = Box(orientation=orientation, spacing=5)
 
@@ -63,16 +63,15 @@ class LayoutBuilder:
         event_box = EventBox(child=box)
 
         event_box.add_events(
-            Gdk.EventMask.ENTER_NOTIFY_MASK |
-            Gdk.EventMask.LEAVE_NOTIFY_MASK
+            Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
 
         anim_id = None
         current = {"wght": 450.0, "slnt": 0.0}
         target = {"wght": 450.0, "slnt": 0.0}
 
-        STEP = 0.45          # speed (0–1)
-        INTERVAL = 16        # ~60fps
+        STEP = 0.45  # speed (0–1)
+        INTERVAL = 16  # ~60fps
 
         def animate():
             nonlocal anim_id
@@ -122,7 +121,6 @@ class LayoutBuilder:
 
         return event_box
 
-
     @staticmethod
     def labeled_slider(
         parent: Box,
@@ -133,6 +131,8 @@ class LayoutBuilder:
         default: float,
         callback: Callable = None,
     ) -> Scale:
+        value = max(default, min_val)
+
         scale_box = Box(orientation="h", spacing=10)
         scale_box.pack_start(
             Label(style_classes=["variation-type-label"], label=f"{label}:"),
@@ -140,6 +140,7 @@ class LayoutBuilder:
             False,
             0,
         )
+        value_label = Label(style_classes=["variation-type-label"], label=f"{value}")
 
         scale = Scale(
             name="control-slider-mui",
@@ -150,12 +151,18 @@ class LayoutBuilder:
             increments=(step, step),
             h_expand=True,
         )
-        scale.set_value(default)
+        scale.set_value(value)
 
         if callback:
-            scale.connect("value-changed", callback)
+
+            def _on_value_changed(s):
+                value_label.set_label(str(int(s.get_value())))
+                callback(s)
+
+            scale.connect("value-changed", _on_value_changed)
 
         scale_box.pack_start(scale, True, True, 0)
+        scale_box.pack_start(value_label, False, False, 0)
         parent.pack_start(scale_box, False, False, 0)
 
         return scale

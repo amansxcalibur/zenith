@@ -129,3 +129,13 @@ def format_accel_to_keybind(accel_name: str) -> str:
         ["<Mod2>", "<Shift>", "<Primary>", "<Mod4><Super>", "<Alt>"],
         [" ", "Shift ", "Ctrl ", "Super ", "Alt "],
     )
+
+
+def bind_group_toggle(switch, targets):
+    def apply(active):
+        for w in targets:
+            w.set_sensitive(active)
+            w.set_opacity(1.0 if active else 0.4)
+
+    apply(switch.get_active())
+    switch.connect("notify::active", lambda s, _p: apply(s.get_active()))

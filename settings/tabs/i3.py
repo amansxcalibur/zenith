@@ -9,6 +9,7 @@ from widgets.animated_scale import AnimatedScale
 
 import icons
 from utils.cursor import add_hover_cursor
+from utils.helpers import bind_group_toggle
 from ..state import state
 from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 
@@ -53,10 +54,25 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
             )
         )
 
+        # corners settings
         self.corner_demo = Box(
             name="i3-settings-demo-window",
             style_classes="corner-demo",
         )
+        corners_enabled_switch = self._create_switch(
+            state_path=[
+                "corners",
+                "enabled",
+            ]
+        )
+        corner_radius_control = self._create_i3_controls(
+            "Corner Radius",
+            0,
+            50,
+            self._on_corner_radius_changed,
+            state.get(["corners", "props", "radius"]),
+        )
+        bind_group_toggle(corners_enabled_switch, [corner_radius_control])
         self.container.add(
             Box(
                 h_expand=True,
@@ -82,23 +98,10 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
                                                         h_align="start",
                                                         h_expand=True,
                                                     ),
-                                                    self._create_switch(
-                                                        state_path=[
-                                                            "corners",
-                                                            "enabled",
-                                                        ]
-                                                    ),
+                                                    corners_enabled_switch,
                                                 ],
                                             ),
-                                            self._create_i3_controls(
-                                                "Corner Radius",
-                                                0,
-                                                50,
-                                                self._on_corner_radius_changed,
-                                                state.get(
-                                                    ["corners", "props", "radius"]
-                                                ),
-                                            ),
+                                            corner_radius_control,
                                         ],
                                     ),
                                 ],
@@ -135,6 +138,66 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
             self.demo_window_right_bottom,
         ]
 
+        # border settings
+        borders_enabled_switch = self._create_switch(
+            state_path=["i3", "borders", "enabled"]
+        )
+        border_theme_row = Box(
+            children=[
+                Label(
+                    label="Theme sync",
+                    h_expand=True,
+                    h_align="start",
+                ),
+                self._create_switch(state_path=["i3", "borders", "matugen"]),
+            ]
+        )
+        border_smart_row = Box(
+            children=[
+                Label(
+                    label="Smart Borders",
+                    h_expand=True,
+                    h_align="start",
+                ),
+                self._create_switch(
+                    state_path=["i3", "borders", "props", "smart_borders"]
+                ),
+            ]
+        )
+        border_width_control = self._create_i3_controls(
+            "Border Width",
+            0,
+            10,
+            self._on_border_width_changed,
+            state.get(["i3", "borders", "props", "border_width"]),
+        )
+
+        bind_group_toggle(
+            borders_enabled_switch,
+            [border_width_control, border_theme_row, border_smart_row],
+        )
+
+        # gaps settings
+        gaps_enabled_switch = self._create_switch(state_path=["i3", "gaps", "enabled"])
+        inner_gap_control = self._create_i3_controls(
+            "Inner",
+            0,
+            50,
+            self._on_inner_gap_changed,
+            state.get(["i3", "gaps", "props", "inner"]),
+        )
+        outer_gap_control = self._create_i3_controls(
+            "Outer",
+            0,
+            50,
+            self._on_outer_gap_changed,
+            state.get(["i3", "gaps", "props", "outer"]),
+        )
+
+        bind_group_toggle(
+            gaps_enabled_switch, [inner_gap_control, outer_gap_control]
+        )
+
         self.container.add(
             LayoutBuilder.section(
                 "I3",
@@ -156,49 +219,12 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
                                                 h_align="start",
                                                 h_expand=True,
                                             ),
-                                            self._create_switch(
-                                                state_path=["i3", "borders", "enabled"]
-                                            ),
+                                            borders_enabled_switch,
                                         ],
                                     ),
-                                    self._create_i3_controls(
-                                        "Border Width",
-                                        0,
-                                        10,
-                                        self._on_border_width_changed,
-                                        state.get(
-                                            ["i3", "borders", "props", "border_width"]
-                                        ),
-                                    ),
-                                    Box(
-                                        children=[
-                                            Label(
-                                                label="Matugen",
-                                                h_expand=True,
-                                                h_align="start",
-                                            ),
-                                            self._create_switch(
-                                                state_path=["i3", "borders", "matugen"]
-                                            ),
-                                        ]
-                                    ),
-                                    Box(
-                                        children=[
-                                            Label(
-                                                label="Smart Borders",
-                                                h_expand=True,
-                                                h_align="start",
-                                            ),
-                                            self._create_switch(
-                                                state_path=[
-                                                    "i3",
-                                                    "borders",
-                                                    "props",
-                                                    "smart_borders",
-                                                ]
-                                            ),
-                                        ]
-                                    ),
+                                    border_width_control,
+                                    border_theme_row,
+                                    border_smart_row,
                                 ],
                             ),
                             Box(
@@ -213,25 +239,11 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
                                                 h_align="start",
                                                 h_expand=True,
                                             ),
-                                            self._create_switch(
-                                                state_path=["i3", "gaps", "enabled"]
-                                            ),
+                                            gaps_enabled_switch,
                                         ]
                                     ),
-                                    self._create_i3_controls(
-                                        "Inner",
-                                        0,
-                                        50,
-                                        self._on_inner_gap_changed,
-                                        state.get(["i3", "gaps", "props", "inner"]),
-                                    ),
-                                    self._create_i3_controls(
-                                        "Outer",
-                                        0,
-                                        50,
-                                        self._on_outer_gap_changed,
-                                        state.get(["i3", "gaps", "props", "outer"]),
-                                    ),
+                                    inner_gap_control,
+                                    outer_gap_control,
                                 ],
                             ),
                         ],
