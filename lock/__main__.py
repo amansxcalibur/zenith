@@ -2,7 +2,6 @@ import pam
 import time
 import threading
 from loguru import logger
-from typing import Optional
 
 try:
     from Xlib import X, XK
@@ -32,7 +31,7 @@ from config.info import USERNAME
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gdk  # noqa: E402
+from gi.repository import GLib, Gdk  # type: ignore
 
 # TODO:
 # - handle runtime keymap changes
@@ -50,10 +49,10 @@ class InputGrabber:
     def __init__(self, window, on_keypress_callback):
         self.window = window
         self.on_keypress = on_keypress_callback
-        self.display: Optional[Display] = None
+        self.display: Display | None = None
         self.xwin = None
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self.special_keys = {
             XK.XK_Return: "Return",
@@ -613,7 +612,7 @@ class LockScreen(Window):
 
         self.text = ""
 
-    def _on_auth_result(self, success: bool, message: Optional[str]):
+    def _on_auth_result(self, success: bool, message: str | None):
         if success:
             self._flash_color(rgb=[0, 1, 0])
             logger.info("Authentication successful - unlocking")
