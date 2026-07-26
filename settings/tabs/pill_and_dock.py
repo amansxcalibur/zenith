@@ -14,10 +14,10 @@ from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk  # noqa: E402
+from gi.repository import Gtk, GLib, Gdk  # type: ignore
 
 ALL_MODULES_MAPPING = {
-    "vertical_toggle_btn": "Vertical Toggle Btn",
+    "actions": "Actions",
     "workspaces": "Workspaces",
     "vol_brightness_box": "Controls Box",
     "weather_mini": "Weather",
@@ -423,7 +423,7 @@ class ModuleDropBox(Gtk.ListBox):
                 self.model[side].remove(name)
                 break
 
-        if source_side == self.side and old_index is not None:
+        if source_side == self.side and old_index is not None:  # noqa: SIM102
             if drop_index > old_index:
                 drop_index -= 1
 

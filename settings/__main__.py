@@ -4,7 +4,7 @@ from fabric.utils import get_relative_path, monitor_file
 from config.info import SHELL_NAME, ROOT_DIR
 from settings.window import SettingsWindow
 
-from gi.repository import GLib
+from gi.repository import GLib  # type: ignore
 
 
 def main():

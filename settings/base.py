@@ -1,6 +1,7 @@
-from typing import Callable, Iterable, Any
-from abc import ABC, abstractmethod
+from typing import Any
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
 
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
@@ -13,7 +14,7 @@ from widgets.material_label import MaterialFontLabel
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk  # noqa: E402
+from gi.repository import Gtk, GLib, Gdk  # type: ignore
 
 
 class BaseWidget(ABC):
@@ -26,7 +27,6 @@ class BaseWidget(ABC):
     @abstractmethod
     def _build_ui(self):
         """Build the widget UI - must be implemented by subclasses"""
-        pass
 
     def get_widget(self):
         """Get the root container widget"""
@@ -77,8 +77,8 @@ class LayoutBuilder:
             nonlocal anim_id
 
             done = True
-            for k in current:
-                delta = target[k] - current[k]
+            for k, val in current.items():
+                delta = target[k] - val
                 if abs(delta) > 0.5:
                     current[k] += delta * STEP
                     done = False
@@ -129,7 +129,7 @@ class LayoutBuilder:
         max_val: float,
         step: float,
         default: float,
-        callback: Callable = None,
+        callback: Callable | None = None,
     ) -> Scale:
         value = max(default, min_val)
 

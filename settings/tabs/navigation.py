@@ -1,4 +1,5 @@
 from loguru import logger
+from typing import ClassVar
 
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
@@ -18,7 +19,7 @@ from config.config import config
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk  # noqa: E402
+from gi.repository import Gtk, Gdk  # type: ignore
 
 
 class KeyBindingsTab(BaseWidget, SectionBuilderMixin):
@@ -163,7 +164,7 @@ class KeyBindingsTab(BaseWidget, SectionBuilderMixin):
 
     def _update_entry_width(self, entry):
         layout = entry.get_layout()
-        text_width, text_height = layout.get_pixel_size()
+        text_width, _text_height = layout.get_pixel_size()
         # padding for entry cursor
         padding = 1
         new_width = text_width + padding
@@ -248,7 +249,7 @@ class LauncherTab(BaseWidget, SectionBuilderMixin):
 
 
 class ShortcutButton(Button, Service):
-    MODIFIER_KEYVALS = {
+    MODIFIER_KEYVALS: ClassVar = {
         # Standard
         Gdk.KEY_Shift_L,
         Gdk.KEY_Shift_R,

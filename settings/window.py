@@ -32,7 +32,7 @@ from .tabs import (
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib  # noqa: E402
+from gi.repository import Gtk, GLib  # type: ignore
 
 
 class DragHandler:

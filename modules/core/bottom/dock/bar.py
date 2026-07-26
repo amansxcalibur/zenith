@@ -88,7 +88,7 @@ class DockBar(Window):
                     ),
                 ),
             ),
-            "vertical_toggle_btn": lambda: add_hover_cursor(ActionButton()),
+            "actions": lambda: add_hover_cursor(ActionButton()),
             "power_profiles": PowerProfilesSelector,
         }
 

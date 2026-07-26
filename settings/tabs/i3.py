@@ -16,7 +16,7 @@ from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk  # type: ignore
 
 
 class I3Tab(BaseWidget, SectionBuilderMixin):
@@ -194,9 +194,7 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
             state.get(["i3", "gaps", "props", "outer"]),
         )
 
-        bind_group_toggle(
-            gaps_enabled_switch, [inner_gap_control, outer_gap_control]
-        )
+        bind_group_toggle(gaps_enabled_switch, [inner_gap_control, outer_gap_control])
 
         self.container.add(
             LayoutBuilder.section(

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
 from fabric.widgets.scale import Scale
@@ -10,11 +12,11 @@ from ..base import BaseWidget, SliderConfig, SliderControlMixin, LayoutBuilder
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk  # type: ignore
 
 
 class IconVariationsTab(BaseWidget, SliderControlMixin):
-    DEMO_ICONS = [
+    DEMO_ICONS: ClassVar = [
         icons.home.symbol(),
         icons.search.symbol(),
         icons.settings.symbol(),
@@ -126,7 +128,7 @@ class IconVariationsTab(BaseWidget, SliderControlMixin):
 
 
 class FontVariationsTab(BaseWidget, SliderControlMixin):
-    SLIDER_CONFIGS = [
+    SLIDER_CONFIGS: ClassVar = [
         SliderConfig("wght", 100, 1000, 50),
         SliderConfig("GRAD", -200, 150, 1),
         SliderConfig("OPSZ", 6, 144, 1),

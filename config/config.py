@@ -43,7 +43,7 @@ DEFAULTS = {
         "SPACING": 8,
         "modules": {
             "left": [
-                "vertical_toggle_btn",
+                "actions",
                 "workspaces",
                 "vol_brightness_box",
                 "weather_mini",
