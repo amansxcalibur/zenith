@@ -1,7 +1,6 @@
 import os
 import json
 from loguru import logger
-from typing import Callable
 
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
@@ -22,7 +21,7 @@ from config.info import DATA_DIR, CACHE_DIR
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, Pango, GdkPixbuf  # noqa: E402
+from gi.repository import Gtk, Gdk, Pango, GdkPixbuf  # type: ignore
 
 
 DATA_FILE = os.path.join(DATA_DIR, "agenda.json")
@@ -39,7 +38,7 @@ def ensure_data_file():
             json.dump([], f)
 
 
-def _make_icon_button(icon, tooltip: str, callback: Callable) -> Button:
+def _make_icon_button(icon, tooltip: str, callback: callable) -> Button:
     return Button(
         name="agenda-btn",
         child=MaterialIconLabel(style_classes="agenda-icon", icon_text=icon.symbol()),
@@ -48,7 +47,7 @@ def _make_icon_button(icon, tooltip: str, callback: Callable) -> Button:
     )
 
 
-def _make_editor_button(label: str, callback: Callable) -> Button:
+def _make_editor_button(label: str, callback: callable) -> Button:
     return Button(
         name="editor-btn",
         h_expand=True,
@@ -76,9 +75,9 @@ class AgendaItem(Gtk.ListBoxRow):
     def __init__(
         self,
         text: str,
-        on_delete: Callable,
-        on_save: Callable,
-        image_path: str = None,
+        on_delete: callable,
+        on_save: callable,
+        image_path: str | None = None,
     ):
         super().__init__(name="agenda-box")
         self.text = text
@@ -157,7 +156,7 @@ class AgendaItem(Gtk.ListBoxRow):
             v_align="start",
         )
 
-    def _build_stack(self, on_delete: Callable):
+    def _build_stack(self, on_delete: callable):
         self.event_box = EventBox(
             child=Overlay(child=self.display_box, overlays=self.action_revealer),
             events=["enter-notify", "leave-notify", "button-press-event"],
@@ -316,7 +315,7 @@ class AgendaApp(Box):
             v_scrollbar_policy="automatic",
             min_content_size=(-1, 80),
             max_content_size=(-1, 150),
-            child=self.new_text_view
+            child=self.new_text_view,
         )
 
         editor_box = Box(

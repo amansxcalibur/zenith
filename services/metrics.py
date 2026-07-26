@@ -1,9 +1,10 @@
 import re
 import psutil
+from loguru import logger
 
 from fabric.core.service import Service, Signal
 
-from gi.repository import GLib
+from gi.repository import GLib  # type: ignore
 
 
 class MetricsProvider(Service):
@@ -49,7 +50,7 @@ class MetricsProvider(Service):
                     if "model name" in line:
                         return re.sub(r".*model name.*:", "", line, count=1).strip()
         except Exception:
-            pass
+            logger.error("Failed read cpu info")
         return "Unknown CPU"
 
     def _update(self) -> bool:

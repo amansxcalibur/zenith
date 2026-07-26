@@ -2,11 +2,11 @@ import pulsectl
 import threading
 import subprocess
 from loguru import logger
-from typing import Callable
 from dataclasses import dataclass
+from collections.abc import Callable
 
 from fabric.core.service import Service, Signal
-from gi.repository import GLib
+from gi.repository import GLib  # type: ignore
 
 
 @dataclass
@@ -234,6 +234,7 @@ class VolumeService(Service):
                 shell=True,
                 text=True,
                 capture_output=True,
+                check=True,
             )
             return volume, "yes" in out_mute.stdout.lower()
         except subprocess.CalledProcessError:

@@ -1,6 +1,7 @@
 from typing import Any
 from loguru import logger
-from typing import Optional, Callable
+from typing import ClassVar
+from collections.abc import Callable
 
 from fabric.widgets.box import Box
 from fabric.widgets.entry import Entry
@@ -27,7 +28,7 @@ from utils.cursor import add_hover_cursor
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk  # noqa: E402
+from gi.repository import Gtk, Gdk # type: ignore
 
 
 class UIConstants:
@@ -97,7 +98,7 @@ class PasswordDialog(BaseDialog):
         parent_widget: Gtk.Widget,
         ssid: str,
         on_submit: Callable[[str], None],
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         update_mode: bool = False,
     ):
         title = f"{'Update Password for' if update_mode else 'Connect to'} {ssid}"
@@ -111,7 +112,7 @@ class PasswordDialog(BaseDialog):
         self.connect("response", self._on_response)
         self.show_all()
 
-    def _build_ui(self, error_message: Optional[str]) -> None:
+    def _build_ui(self, error_message: str | None) -> None:
         content_box = Box(name="password-dialog-box", orientation="v", spacing=10)
         self.get_content_area().add(content_box)
 
@@ -281,7 +282,7 @@ class WifiButton(EventBox):
         self,
         ap: dict,
         network_service: NetworkService,
-        on_connect: Callable[[str, Optional[str]], None],
+        on_connect: Callable[[str, str | None], None],
         **kwargs,
     ):
         self.ap = ap
@@ -492,7 +493,7 @@ class WifiButton(EventBox):
 
 
 class EthernetButton(EventBox):
-    STATUS_LABELS = {
+    STATUS_LABELS: ClassVar = {
         DeviceStatus.UNKNOWN: "Off",
         DeviceStatus.DEVICE_OFF: "Off",
         DeviceStatus.DISCONNECTED: "Disconnected",
@@ -505,7 +506,7 @@ class EthernetButton(EventBox):
         self,
         eth_conn: dict,
         network_service: NetworkService,
-        on_connect: Callable[[str, Optional[str]], None],
+        on_connect: Callable[[str, str | None], None],
         **kwargs,
     ):
         self.eth_conn = eth_conn
@@ -633,7 +634,7 @@ class NetworkListManager:
         active_container: Box,
         available_container: Box,
         network_service: WifiDevice,
-        on_connect: Callable[[str, Optional[str]], None],
+        on_connect: Callable[[str, str | None], None],
     ):
         self.active_container = active_container
         self.available_container = available_container
@@ -691,7 +692,7 @@ class NetworkListManager:
 
 
 class Network(TileSimpleWithMenu):
-    STATUS_LABELS = {
+    STATUS_LABELS: ClassVar = {
         DeviceStatus.UNKNOWN: "Off",
         DeviceStatus.DEVICE_OFF: "Off",
         DeviceStatus.DISCONNECTED: "Disconnected",
@@ -699,7 +700,7 @@ class Network(TileSimpleWithMenu):
         DeviceStatus.NO_DEVICE: "No Device",
     }
 
-    CONN_TYPE_META = {
+    CONN_TYPE_META: ClassVar = {
         ConnectionType.WIFI: {"text": "Wi-Fi", "icon": icons.wifi.symbol()},
         ConnectionType.ETHERNET: {"text": "Ethernet", "icon": icons.lan.symbol()},
         ConnectionType.NONE: {
@@ -709,7 +710,7 @@ class Network(TileSimpleWithMenu):
     }
 
     def __init__(self, **kwargs):
-        self.state: Optional[bool] = None
+        self.state: bool | None = None
         self._is_initialized = False
 
         self.label = Label(
@@ -790,7 +791,7 @@ class Network(TileSimpleWithMenu):
             self._handle_network_connect,
         )
 
-        self.password_dialog: Optional[PasswordDialog] = None
+        self.password_dialog: PasswordDialog | None = None
 
         super().__init__(
             title="Internet",
@@ -901,7 +902,7 @@ class Network(TileSimpleWithMenu):
 
     def unregister_keybindings(self):
         window = self.get_toplevel()
-        for key in self._keybindings().keys():
+        for key in self._keybindings():
             window.remove_keybinding(key)
 
     def _initialize_network_state(self) -> None:
@@ -967,7 +968,7 @@ class Network(TileSimpleWithMenu):
             self.list_manager._clear()
 
     def _on_connection_change(
-        self, source: NetworkService, device: Optional[EthernetDevice | WifiDevice]
+        self, source: NetworkService, device: EthernetDevice | WifiDevice | None
     ) -> None:
 
         if device is None:
@@ -1047,7 +1048,7 @@ class Network(TileSimpleWithMenu):
                 self.password_dialog = None
 
     def _handle_network_connect(
-        self, ssid: str, password: Optional[str] = None
+        self, ssid: str, password: str | None = None
     ) -> None:
         try:
             result = self.nm.get_wifi_device().connect_to_network(ssid, password)
@@ -1075,7 +1076,7 @@ class Network(TileSimpleWithMenu):
             BaseDialog.show_notification("Connection error occurred")
 
     def _show_password_dialog(
-        self, ssid: str, error_message: Optional[str] = None
+        self, ssid: str, error_message: str | None = None
     ) -> None:
         # clean up existing dialog
         if self.password_dialog:

@@ -16,7 +16,7 @@ from config.config import config
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk  # noqa: E402
+from gi.repository import Gtk, GLib, Gdk  # type: ignore
 
 SPACING = 0
 CONTROLS_SPACING = 5
@@ -80,8 +80,10 @@ class TopBar(Window):
         children: list,
         transition_type: str = "crossfade",
         name: str = "",
-        style_classes: list = [],
+        style_classes: list | None = None,
     ) -> Stack:
+        if style_classes is None:
+            style_classes = []
         stack = Stack(
             name=name,
             style_classes=style_classes,

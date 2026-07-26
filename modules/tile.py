@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
 from fabric.widgets.stack import Stack
@@ -15,7 +17,7 @@ from widgets.material_label import MaterialIconLabel
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk  # type: ignore
 
 
 class TileSimple(ClippingBox):
@@ -23,11 +25,13 @@ class TileSimple(ClippingBox):
         self,
         markup: str = icons.blur.symbol(),
         label: str = "__",
-        status_label_widget: Label = Label(
-            style_classes="tile-label", label="N/A", h_align="start"
-        ),
+        status_label_widget: Label | None = None,
         **kwargs,
     ):
+        if status_label_widget is None:
+            status_label_widget = Label(
+                style_classes="tile-label", label="N/A", h_align="start"
+            )
         default_classes = ["tile", "simple", "off"]
         extra_classes = kwargs.pop("style_classes", [])
         merged_classes = default_classes + extra_classes
@@ -147,12 +151,14 @@ class TileSimpleWithMenu(ClippingBox):
         markup: str = icons.blur.symbol(),
         label: str = "__",
         title: str = "",
-        status_label_widget: Label = Label(
-            style_classes="tile-label", label="N/A", h_align="start"
-        ),
+        status_label_widget: Label | None = None,
         menu_children: Gtk.Widget = None,
         **kwargs,
     ):
+        if status_label_widget is None:
+            status_label_widget = Label(
+                style_classes="tile-label", label="N/A", h_align="start"
+            )
         default_classes = ["tile", "simple", "off"]
         extra_classes = kwargs.pop("style_classes", [])
         merged_classes = default_classes + extra_classes
@@ -362,7 +368,7 @@ class Tile(ClippingBox):
         label: str = "__",
         menu_children=None,
         props: Label = None,
-        on_toggle: callable = None,
+        on_toggle: Callable | None = None,
         **kwargs,
     ):
         default_classes = ["tile", "off"]

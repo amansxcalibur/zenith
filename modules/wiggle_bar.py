@@ -1,6 +1,5 @@
 import math
 import cairo
-from typing import Tuple
 
 from fabric.core.service import Service, Signal, Property
 
@@ -10,7 +9,7 @@ from utils.colors import get_css_variable, hex_to_rgb01
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk # type: ignore
 
 
 class WigglyScale(Gtk.DrawingArea, Service):
@@ -24,7 +23,6 @@ class WigglyScale(Gtk.DrawingArea, Service):
     @dragging.setter
     def dragging(self, dragging: bool) -> None:
         self._dragging = dragging
-        return
 
     def __init__(self):
         super().__init__()
@@ -128,7 +126,7 @@ class WigglyScale(Gtk.DrawingArea, Service):
         last_x = 0  # fallback values in case the slider gets dragged out of range
         last_y = 0
 
-        init_x = stroke_width
+        # init_x = stroke_width
         init_y = center_y + self.amplitude * math.sin(
             (stroke_width * frequency) + self.phase
         )
@@ -136,7 +134,7 @@ class WigglyScale(Gtk.DrawingArea, Service):
         for x in range(stroke_width, width):
             y = center_y + self.amplitude * math.sin((x * frequency) + self.phase)
             cr.line_to(x, y)
-            last_x, last_y = x, y
+            last_x, last_y = x, y  # noqa: F841
 
         cr.stroke()
 
@@ -183,12 +181,11 @@ class WigglyArrow(Gtk.DrawingArea, Service):
     @dragging.setter
     def dragging(self, dragging: bool) -> None:
         self._dragging = dragging
-        return
 
     def __init__(
         self,
         dark: bool = False,
-        override_color: Tuple[float, float, float] | None = None,
+        override_color: tuple[float, float, float] | None = None,
     ):
         super().__init__()
         self.phase = 0
@@ -199,7 +196,7 @@ class WigglyArrow(Gtk.DrawingArea, Service):
         self.speed = 0.05
 
         self.dark = dark
-        self._override_color: Tuple[float, float, float] | None = override_color
+        self._override_color: tuple[float, float, float] | None = override_color
 
         self.set_size_request(-1, 20)
         self.connect("draw", self.on_draw)
@@ -317,7 +314,7 @@ class WigglyArrow(Gtk.DrawingArea, Service):
                 t = i / settle_steps  # 0 -> 1
 
                 # smoothstep for velocity kill
-                smooth = 1 - (3 * t * t - 2 * t * t * t)
+                # smooth = 1 - (3 * t * t - 2 * t * t * t)
 
                 # cosine easing ensures horizontal tangent at end
                 y = center_y + (last_y - center_y) * 1 * math.cos(t * math.pi / 2)
@@ -351,7 +348,7 @@ class WigglyArrow(Gtk.DrawingArea, Service):
         cr.move_to(x + 3 * y / 4 - radius, y / 2)
         cr.line_to(x + radius, y - radius)
 
-    def _get_color(self) -> Tuple[float, float, float]:
+    def _get_color(self) -> tuple[float, float, float]:
         """Return the current RGB color (override or from CSS variable)."""
         if self._override_color is not None:
             return self._override_color
@@ -362,7 +359,7 @@ class WigglyArrow(Gtk.DrawingArea, Service):
         )
         return hex_to_rgb01(hex_color)
 
-    def set_color(self, rgb: Tuple[float, float, float] | None, redraw: bool = True):
+    def set_color(self, rgb: tuple[float, float, float] | None, redraw: bool = True):
         """Override the shape color and optionally trigger a redraw."""
         self._override_color = rgb
         if redraw:

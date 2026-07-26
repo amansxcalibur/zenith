@@ -5,23 +5,22 @@ from fabric.widgets.eventbox import EventBox
 from fabric.widgets.revealer import Revealer
 from fabric.widgets.circularprogressbar import CircularProgressBar
 
-from .metrics_popup import Metrics
-
+import icons
+from config.config import config
 from widgets.animated_scale import AnimatedScale
 from widgets.popup_window import SharedPopupWindow
 from widgets.material_label import MaterialIconLabel
 from services.metrics import MetricsProvider
 
-import icons as icons
-from config.config import config
+from .metrics_popup import Metrics
 
-from gi.repository import GLib
+from gi.repository import GLib  # type: ignore
 
 
 class MetricItem(Box):
     def __init__(self, icon_symbol, style_class, vertical, bar_size):
         super().__init__(name=f"metric-{style_class}-item", orientation="h")
-        
+
         self.icon = MaterialIconLabel(
             name=f"{style_class}-icon", FILL=0, wght=600, icon_text=icon_symbol
         )
@@ -41,7 +40,7 @@ class MetricItem(Box):
             transition_type="slide-left" if not vertical else "slide-down",
             child=self.level,
         )
-        
+
         self.add(self.circle)
         self.add(self.revealer)
 
@@ -57,10 +56,14 @@ class MetricsSmall(Button):
     def __init__(self, **kwargs):
         super().__init__(name="metrics-small", **kwargs)
         self.service = MetricsProvider()
-        
+
         self.cpu = MetricItem(icons.cpu.symbol(), "cpu", config.VERTICAL, self.BAR_SIZE)
-        self.ram = MetricItem(icons.memory.symbol(), "ram", config.VERTICAL, self.BAR_SIZE)
-        self.disk = MetricItem(icons.disk.symbol(), "disk", config.VERTICAL, self.BAR_SIZE)
+        self.ram = MetricItem(
+            icons.memory.symbol(), "ram", config.VERTICAL, self.BAR_SIZE
+        )
+        self.disk = MetricItem(
+            icons.disk.symbol(), "disk", config.VERTICAL, self.BAR_SIZE
+        )
 
         self.metrics_list = [self.disk, self.ram, self.cpu]
 
@@ -120,7 +123,7 @@ class MetricsSliderMaterial3(AnimatedScale):
             orientation=orientation,
             h_expand=True,
             has_origin=True,
-            inverted=False if orientation == "h" else True,
+            inverted=orientation != "h",
             style_classes="" if orientation == "h" else "vertical",
             increments=(0.01, 0.1),
             **kwargs,

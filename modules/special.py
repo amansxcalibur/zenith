@@ -1,4 +1,3 @@
-import gi
 import time
 from loguru import logger
 from typing import Literal
@@ -17,8 +16,10 @@ from widgets.material_label import MaterialFontLabel, MaterialIconLabel
 from services.animator import Animator
 from utils.helpers import restart_shell
 
+import gi
+
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk  # noqa: E402
+from gi.repository import Gtk, GLib, Gdk  # type: ignore
 
 
 # too much overriding
@@ -38,7 +39,6 @@ class DateTime(Button):
                 "[DateTime] passed in invalid list of formatters, using default formatters list"
             )
             self._formatters = ("%I:%M %p", "%A", "%m-%d-%Y")
-        return
 
     @Property(int, "read-write")
     def interval(self):
@@ -51,7 +51,6 @@ class DateTime(Button):
             GLib.source_remove(self._repeater_id)
         self._repeater_id = invoke_repeater(self._interval, self.do_update_label)
         self.do_update_label()
-        return
 
     def __init__(
         self,
@@ -97,7 +96,7 @@ class DateTime(Button):
             **kwargs,
         )
         self.add_events(Gdk.EventMask.SCROLL_MASK)
-        self._formatters: tuple[str, ...] = tuple()
+        self._formatters: tuple[str, ...] = ()
         self._current_index: int = 0
         self._interval: int = interval
         self._repeater_id: int | None = None
@@ -141,7 +140,6 @@ class DateTime(Button):
                 self.do_cycle_next()
             case 3:  # right click
                 self.do_cycle_prev()
-        return
 
     def do_handle_scroll(self, _, event, *args):
         match event.direction:
@@ -149,7 +147,6 @@ class DateTime(Button):
                 self.do_cycle_next()
             case Gdk.ScrollDirection.DOWN:  # scrolling down
                 self.do_cycle_prev()
-        return
 
 
 class ActionButton(EventBox):

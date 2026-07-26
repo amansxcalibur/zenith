@@ -2,7 +2,6 @@ import math
 import time
 import cairo
 import requests
-from typing import Tuple
 from loguru import logger
 from dataclasses import dataclass
 
@@ -29,7 +28,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gtk, GLib, Pango, PangoCairo, Rsvg  # noqa: E402
+from gi.repository import Gtk, GLib, Pango, PangoCairo, Rsvg # type: ignore
 
 
 @dataclass
@@ -359,7 +358,7 @@ class WeatherCard(Box):
 
 
 class WeatherPill(Gtk.DrawingArea):
-    def __init__(self, size: Tuple[int, int] = (-1, 160), dark: bool = False):
+    def __init__(self, size: tuple[int, int] = (-1, 160), dark: bool = False):
         super().__init__()
         self.set_size_request(size[0], size[1])
         self.connect("draw", self.on_draw)
@@ -382,7 +381,7 @@ class WeatherPill(Gtk.DrawingArea):
             self._svg_handle = None
         GLib.idle_add(self.queue_draw)
 
-    def _get_rgb_color(self, css_var: str) -> Tuple[float, float, float]:
+    def _get_rgb_color(self, css_var: str) -> tuple[float, float, float]:
         hex_color = get_css_variable(f"{ROOT_DIR}/styles/colors.css", css_var)
         return hex_to_rgb01(hex_color)
 
@@ -428,7 +427,7 @@ class WeatherPill(Gtk.DrawingArea):
         font_desc.set_variations("ROND=100")
         layout.set_font_description(font_desc)
 
-        ink_rect, logical_rect = layout.get_pixel_extents()
+        _, logical_rect = layout.get_pixel_extents()
         temp_cx = width - base_radius
         temp_cy = base_radius / 1.125
         ctx.move_to(

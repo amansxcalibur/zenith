@@ -7,7 +7,7 @@ from fabric.core.service import Service, Signal
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gdk, Gtk
+from gi.repository import GLib, Gdk, Gtk  # type: ignore
 
 DEFAULT_MARGIN = 2
 FOCUS_MARGIN = 3
@@ -129,9 +129,9 @@ class HoverOverlay(EventBox, Service):
     # ---- handle hover states ----
     def expand_as_main(self, animated=True):
         self.is_currently_expanded = True
-        target_width = (
-            self.width if self.width > 0 else self._target.get_allocation().width
-        )
+        # target_width = (
+        #     self.width if self.width > 0 else self._target.get_allocation().width
+        # )
 
         style = "min-width:0px;"
         if not self._layout_manager.hole_state:
@@ -150,8 +150,7 @@ class HoverOverlay(EventBox, Service):
 
         # making room for the main hole - (40/2)px
         width = target_width - 20 if is_adjacent else target_width
-        if width < 0:
-            width = 0
+        width = max(width, 0)
 
         style = f"min-width:{width}px;"
         if animated:

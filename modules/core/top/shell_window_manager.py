@@ -7,7 +7,7 @@ from services.animator import Animator
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk  # noqa: E402
+from gi.repository import Gtk, Gdk  # type: ignore
 
 
 class ShellTopWindowManager:
@@ -96,7 +96,7 @@ class ShellTopWindowManager:
     def _snap_pill(self, animate: bool = True, fixed: bool = False):
         geo = self._get_monitor_geometry(self.pill)
         win_x, win_y = self.pill.get_position()
-        win_w, win_h = self.pill.get_size()
+        win_w, _win_h = self.pill.get_size()
 
         dock_offset = self.DOCK_HEIGHT if self._is_dock_visible() else 0
 

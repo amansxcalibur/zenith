@@ -26,7 +26,7 @@ from utils.lock import generate_lockscreen_image
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gtk, GLib, Gio, Gdk
+from gi.repository import GdkPixbuf, Gtk, GLib, Gio, Gdk # type: ignore
 
 
 # paths
@@ -287,7 +287,7 @@ class WallpaperSelector(Box):
         # process and rename old wallpapers
         with os.scandir(config.WALLPAPERS_DIR) as entries:
             for entry in entries:
-                if entry.is_file() and self._is_image(entry.name):
+                if entry.is_file() and self._is_image(entry.name):  # noqa: SIM102
                     if entry.name != entry.name.lower() or " " in entry.name:
                         new_name = entry.name.lower().replace(" ", "-")
                         full_path = os.path.join(config.WALLPAPERS_DIR, entry.name)
@@ -494,7 +494,7 @@ class WallpaperSelector(Box):
 
         self.update_badge_visibility(target_file_name=file_name)
 
-    def update_badge_visibility(self, target_file_name: str = None):
+    def update_badge_visibility(self, target_file_name: str | None = None):
         # 1. Fallback to service state ONLY if no explicit target is provided
         if target_file_name is None:
             try:

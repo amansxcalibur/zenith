@@ -1,4 +1,5 @@
 import psutil
+from expressive_shapes.shapes import cookie_12
 
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
@@ -7,15 +8,12 @@ from fabric.widgets.overlay import Overlay
 
 from widgets.clipping_box import ClippingBox
 from widgets.graphs import AnimatedBarGraph, CircularGraph
+from widgets.shapes.expressive.morphing_shapes import ExpressiveShape
 from widgets.material_label import MaterialIconLabel, MaterialFontLabel
 from services.metrics import MetricsProvider
+import icons
 
-import icons as icons
-
-from expressive_shapes.shapes import cookie_12
-from widgets.shapes.expressive.morphing_shapes import ExpressiveShape
-
-from gi.repository import GLib
+from gi.repository import GLib  # type: ignore
 
 HISTORY_MIN = 5
 HISTORY_MAX = 120
@@ -36,39 +34,68 @@ class Metrics(Box):
         GLib.timeout_add_seconds(1, self._update_ui)
         GLib.timeout_add_seconds(
             1,
-            lambda: self.cpu_circular_graph._update_targets(psutil.cpu_percent(percpu=True)),
+            lambda: self.cpu_circular_graph._update_targets(
+                psutil.cpu_percent(percpu=True)
+            ),
         )
 
     def _build_widgets(self):
-        self.cpu_graph = AnimatedBarGraph(bar_width=4, color="#3498db", history_seconds=HISTORY_DEF)
-        self.mem_graph = AnimatedBarGraph(bar_width=4, color="#2ecc71", history_seconds=HISTORY_DEF)
+        self.cpu_graph = AnimatedBarGraph(
+            bar_width=4, color="#3498db", history_seconds=HISTORY_DEF
+        )
+        self.mem_graph = AnimatedBarGraph(
+            bar_width=4, color="#2ecc71", history_seconds=HISTORY_DEF
+        )
         self.cpu_circular_graph = CircularGraph(bar_count=psutil.cpu_count())
 
         self.cpu_label = MaterialFontLabel(
-            text="--", v_align="center", style="font-size: 30px;", font_family="Google Sans Flex",
+            text="--",
+            v_align="center",
+            style="font-size: 30px;",
+            font_family="Google Sans Flex",
         )
         self.disk_label = MaterialFontLabel(
-            text="--", style_classes="roboto", style="font-size: 30px",
-            font_family="Google Sans Flex", h_expand=True, v_expand=True,
+            text="--",
+            style_classes="roboto",
+            style="font-size: 30px",
+            font_family="Google Sans Flex",
+            h_expand=True,
+            v_expand=True,
         )
-        self.cores = Label(label=f"{psutil.cpu_count()} cores", style_classes="metrics-sub-text")
+        self.cores = Label(
+            label=f"{psutil.cpu_count()} cores", style_classes="metrics-sub-text"
+        )
         self.cpu_name_label = Label(
-            label="--", style_classes="roboto", ellipsization="end",
-            max_chars_width=18, h_expand=True,
+            label="--",
+            style_classes="roboto",
+            ellipsization="end",
+            max_chars_width=18,
+            h_expand=True,
         )
         self.cpu_temp_label = Label(label="--", style_classes="roboto")
         self.disk_ratio_label = Label(
-            label="-- / --", style_classes="roboto", h_expand=True, v_align="center",
+            label="-- / --",
+            style_classes="roboto",
+            h_expand=True,
+            v_align="center",
         )
         self.mem_ratio_label = Label(
-            label="-- / --", style_classes="roboto", h_expand=True,
-            v_align="center", h_align="start",
+            label="-- / --",
+            style_classes="roboto",
+            h_expand=True,
+            v_align="center",
+            h_align="start",
         )
 
     def _make_history_slider(self, graph: AnimatedBarGraph) -> Box:
         slider = Scale(
-            name="slider-mui", orientation="h", h_expand=True,
-            increments=(1, 1), min_value=HISTORY_MIN, max_value=HISTORY_MAX, value=HISTORY_DEF,
+            name="slider-mui",
+            orientation="h",
+            h_expand=True,
+            increments=(1, 1),
+            min_value=HISTORY_MIN,
+            max_value=HISTORY_MAX,
+            value=HISTORY_DEF,
         )
         curr_val_label = Label(label=f"{HISTORY_DEF}s")
 
@@ -77,7 +104,11 @@ class Metrics(Box):
             curr_val_label.set_label(f"{int(scale.get_value())}s")
 
         slider.connect("value-changed", _on_change)
-        return Box(style_classes="metrics-desc-box", spacing=8, children=[slider, curr_val_label])
+        return Box(
+            style_classes="metrics-desc-box",
+            spacing=8,
+            children=[slider, curr_val_label],
+        )
 
     @staticmethod
     def _ring_style(margin: float) -> str:
@@ -92,30 +123,53 @@ class Metrics(Box):
             style_classes=["metrics-storage-circle", "active"],
             style="border-radius: 999px",
             children=Box(
-                h_expand=True, v_align="center", orientation="v", spacing=5,
+                h_expand=True,
+                v_align="center",
+                orientation="v",
+                spacing=5,
                 children=[
                     Box(
-                        h_expand=True, v_expand=True, h_align="center",
-                        children=[MaterialIconLabel(icon_text=icons.disk.symbol()), Label(label="Disk")],
+                        h_expand=True,
+                        v_expand=True,
+                        h_align="center",
+                        children=[
+                            MaterialIconLabel(icon_text=icons.disk.symbol()),
+                            Label(label="Disk"),
+                        ],
                     ),
                     self.disk_label,
                 ],
             ),
         )
-        self.ring_3 = Box(h_expand=True, style_classes="metrics-storage-circle", style=self._ring_style(m), children=disk_core)
-        self.ring_2 = Box(h_expand=True, style_classes="metrics-storage-circle", style=self._ring_style(m), children=self.ring_3)
+        self.ring_3 = Box(
+            h_expand=True,
+            style_classes="metrics-storage-circle",
+            style=self._ring_style(m),
+            children=disk_core,
+        )
+        self.ring_2 = Box(
+            h_expand=True,
+            style_classes="metrics-storage-circle",
+            style=self._ring_style(m),
+            children=self.ring_3,
+        )
         self.ring_1 = Box(
-            size=(250, 250), h_expand=True,
-            style_classes="metrics-storage-circle", style=self._ring_style(m),
+            size=(250, 250),
+            h_expand=True,
+            style_classes="metrics-storage-circle",
+            style=self._ring_style(m),
             children=self.ring_2,
         )
 
         # radial graph
         cpu_radial = ClippingBox(
-            size=(250, 250), h_expand=True, v_align="center",
+            size=(250, 250),
+            h_expand=True,
+            v_align="center",
             style="background-color: black; border-radius: 999px",
             children=Box(
-                h_expand=True, style="margin: -10px;",
+                h_expand=True,
+                style="margin: -10px;",
                 children=Overlay(
                     h_expand=True,
                     child=ExpressiveShape(
@@ -132,9 +186,15 @@ class Metrics(Box):
                     ),
                     overlays=[
                         Box(
-                            h_expand=True, v_align="center", orientation="v",
+                            h_expand=True,
+                            v_align="center",
+                            orientation="v",
                             children=[
-                                Box(h_expand=True, h_align="center", children=[self.cpu_label]),
+                                Box(
+                                    h_expand=True,
+                                    h_align="center",
+                                    children=[self.cpu_label],
+                                ),
                                 self.cores,
                             ],
                         )
@@ -144,38 +204,59 @@ class Metrics(Box):
         )
 
         def graph_panel(graph, icon, title, extra_overlay=None):
-            header = Box(spacing=2, children=[MaterialIconLabel(icon_text=icon, font_size=14), Label(label=title, h_align="start")])
-            overlay_content = Box(style="padding: 10px;", h_align="start", orientation="v",
-                                  children=[header] + ([extra_overlay] if extra_overlay else []))
+            header = Box(
+                spacing=2,
+                children=[
+                    MaterialIconLabel(icon_text=icon, font_size=14),
+                    Label(label=title, h_align="start"),
+                ],
+            )
+            overlay_content = Box(
+                style="padding: 10px;",
+                h_align="start",
+                orientation="v",
+                children=[header] + ([extra_overlay] if extra_overlay else []),
+            )
             return Overlay(
                 name="metric-graph-container",
-                child=ClippingBox(style="background-color: black; border-radius: 20px", children=graph),
+                child=ClippingBox(
+                    style="background-color: black; border-radius: 20px", children=graph
+                ),
                 overlays=[overlay_content],
             )
 
         self.children = [
             # CPU radial + CPU bar graph
             Box(
-                h_expand=True, spacing=10,
+                h_expand=True,
+                spacing=10,
                 children=[
                     Box(
-                        orientation="v", spacing=8,
+                        orientation="v",
+                        spacing=8,
                         children=[
                             cpu_radial,
                             Box(
-                                style_classes="metrics-desc-box", v_expand=True, spacing=8,
+                                style_classes="metrics-desc-box",
+                                v_expand=True,
+                                spacing=8,
                                 children=[
                                     self.cpu_name_label,
-                                    Box(children=[
-                                        MaterialIconLabel(icon_text=icons.device_thermostat.symbol()),
-                                        self.cpu_temp_label,
-                                    ]),
+                                    Box(
+                                        children=[
+                                            MaterialIconLabel(
+                                                icon_text=icons.device_thermostat.symbol()
+                                            ),
+                                            self.cpu_temp_label,
+                                        ]
+                                    ),
                                 ],
                             ),
                         ],
                     ),
                     Box(
-                        spacing=8, orientation="v",
+                        spacing=8,
+                        orientation="v",
                         children=[
                             graph_panel(self.cpu_graph, icons.cpu.symbol(), "CPU"),
                             self._make_history_slider(self.cpu_graph),
@@ -188,20 +269,29 @@ class Metrics(Box):
                 spacing=10,
                 children=[
                     Box(
-                        spacing=8, orientation="v",
+                        spacing=8,
+                        orientation="v",
                         children=[
                             self.ring_1,
                             Box(
-                                style_classes="metrics-desc-box", v_expand=True,
-                                h_align="start", spacing=8,
+                                style_classes="metrics-desc-box",
+                                v_expand=True,
+                                h_align="start",
+                                spacing=8,
                                 children=[self.disk_ratio_label],
                             ),
                         ],
                     ),
                     Box(
-                        spacing=8, orientation="v",
+                        spacing=8,
+                        orientation="v",
                         children=[
-                            graph_panel(self.mem_graph, icons.memory.symbol(), "Memory", extra_overlay=self.mem_ratio_label),
+                            graph_panel(
+                                self.mem_graph,
+                                icons.memory.symbol(),
+                                "Memory",
+                                extra_overlay=self.mem_ratio_label,
+                            ),
                             self._make_history_slider(self.mem_graph),
                         ],
                     ),

@@ -32,7 +32,6 @@ class NotificationNotifier(Service):
     @has_unread.setter
     def has_unread(self, value: bool) -> None:
         self._has_unread = value
-        return
 
     @Property(bool, default_value=False, flags="read-write")
     def has_urgent_unread(self) -> bool:
@@ -41,7 +40,6 @@ class NotificationNotifier(Service):
     @has_urgent_unread.setter
     def has_urgent_unread(self, value: bool) -> None:
         self._has_urgent_unread = value
-        return
 
     @Property(bool, default_value=False, flags="read-write")
     def silent(self) -> bool:
@@ -51,7 +49,6 @@ class NotificationNotifier(Service):
     def silent(self, value: bool) -> None:
         self._silent = value
         config.SILENT = value
-        return
 
     def __new__(cls):
         if cls._instance is None:

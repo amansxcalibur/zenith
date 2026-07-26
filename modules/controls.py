@@ -11,18 +11,15 @@ from modules.volume import (
     MicMaterial3,
 )
 from modules.brightness import BrightnessSlider, BrightnessSmall, BrightnessMaterial3
-
 from widgets.popup_window import SharedPopupWindow
-
 from services.volume_service import VolumeService
 from services.brightness_service import BrightnessService
-
 from config.config import config
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib
+from gi.repository import GLib # type: ignore
 
 
 class AutoHideRevealer:

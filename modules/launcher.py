@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import ClassVar
 from functools import lru_cache
 from collections.abc import Iterator
 
@@ -18,7 +19,18 @@ from widgets.material_label import MaterialIconLabel
 import icons
 from config.config import config
 
-from gi.repository import GLib, Gdk, Gtk
+from gi.repository import GLib, Gdk, Gtk  # type: ignore
+
+
+@lru_cache(maxsize=256)
+def _get_filtered_apps(all_apps, query: str) -> tuple[DesktopApp, ...]:
+    query_lower = query.casefold()
+    return [
+        app
+        for app in all_apps
+        if query_lower
+        in f"{app.display_name or ''} {app.name} {app.generic_name or ''}".casefold()
+    ]
 
 
 class AppCommands(Enum):
@@ -30,12 +42,12 @@ class AppCommands(Enum):
 
 
 class AppLauncher(Box):
-    LAUNCH_MODES = [">", ":", "="]
+    LAUNCH_MODES: ClassVar = [">", ":", "="]
     MODE_APP = ">"
     MODE_COMMAND = ":"
     MODE_CALC = "="
 
-    COMMANDS = [
+    COMMANDS: ClassVar = [
         {
             "title": "Power",
             "cmd": ":p",
@@ -95,7 +107,9 @@ class AppLauncher(Box):
             "mode-next": Gtk.accelerator_parse(
                 self._launcher_bindings_config["launcher.mode_next"]
             ),
-            "up": Gtk.accelerator_parse(self._launcher_bindings_config["launcher.move_up"]),
+            "up": Gtk.accelerator_parse(
+                self._launcher_bindings_config["launcher.move_up"]
+            ),
             "down": Gtk.accelerator_parse(
                 self._launcher_bindings_config["launcher.move_down"]
             ),
@@ -253,7 +267,7 @@ class AppLauncher(Box):
             get_desktop_applications(),
             key=lambda app: (app.display_name or "").casefold(),
         )
-        self._get_filtered_apps.cache_clear()  # lru_cache bust on reload
+        _get_filtered_apps.cache_clear()  # lru_cache bust on reload
 
     def _on_hover_enter(self, widget, event):
         if event.detail != Gdk.NotifyType.INFERIOR:
@@ -443,7 +457,7 @@ class AppLauncher(Box):
     def _arrange_app_mode(self, query):
         self._clear_viewport()
 
-        filtered_apps = self._get_filtered_apps(query)
+        filtered_apps = _get_filtered_apps(self._all_apps, query)
 
         self._arranger_handler = idle_add(
             lambda apps_iter: (
@@ -454,16 +468,6 @@ class AppLauncher(Box):
             pin=True,
         )
 
-    @lru_cache(maxsize=256)
-    def _get_filtered_apps(self, query: str) -> tuple[DesktopApp, ...]:
-        query_lower = query.casefold()
-        return [
-            app
-            for app in self._all_apps
-            if query_lower
-            in f"{app.display_name or ''} {app.name} {app.generic_name or ''}".casefold()
-        ]
-
     def _clear_viewport(self):
         remove_handler(self._arranger_handler) if self._arranger_handler else None
         self.viewport.children = []
@@ -471,9 +475,8 @@ class AppLauncher(Box):
 
     def _handle_arrange_complete(self, query):
         children = self.viewport.get_children()
-        if query.strip():  # auto-select last item if query exists
-            if children:
-                GLib.idle_add(lambda: self._update_selection(len(children) - 1))
+        if query.strip() and children:  # auto-select last item if query exists
+            GLib.idle_add(lambda: self._update_selection(len(children) - 1))
 
         return False
 
@@ -624,7 +627,6 @@ class AppLauncher(Box):
     # Calculator Mode, kinda unnecessary
     def _update_calculator_viewport(self):
         self._clear_viewport()
-        return
 
     def _evaluate_calculator_expression(self, text: str):
         return
@@ -632,7 +634,7 @@ class AppLauncher(Box):
     def close_launcher(self):
         self.viewport.children = []
         self.selected_index = -1
-        self._get_filtered_apps.cache_clear()
+        _get_filtered_apps.cache_clear()
         self._pill.close()
 
     def open_launcher(self):

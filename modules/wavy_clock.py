@@ -1,7 +1,7 @@
-from typing import Tuple
 import math
 import cairo
 import datetime
+from typing import ClassVar
 
 from config.info import ROOT_DIR
 from utils.colors import get_css_variable, hex_to_rgb01
@@ -11,7 +11,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gtk, GLib, Pango, PangoCairo  # noqa: E402
+from gi.repository import Gtk, GLib, Pango, PangoCairo  # type: ignore
 
 
 class WavyClock(Gtk.DrawingArea):
@@ -30,18 +30,18 @@ class WavyClock(Gtk.DrawingArea):
 
     FONT_SIZE_RATIO = 0.18
     FONT_NAME = "Google Sans Flex"
-    FONT_VARIATIONS = {"wght": 500, "ROND": 100, "wdth": 100}
+    FONT_VARIATIONS: ClassVar = {"wght": 500, "ROND": 100, "wdth": 100}
 
     HOUR_HAND_ALPHA = 0.6
     MINUTE_HAND_ALPHA = 1.0
     TEXT_ALPHA = 0.8
 
-    def __init__(self, size: Tuple[int, int] = (-1, 160), dark: bool = False):
+    def __init__(self, size: tuple[int, int] = (-1, 160), dark: bool = False):
         super().__init__()
         self.dark = dark
         self.set_size_request(size[0], size[1])
 
-        self.now = datetime.datetime.now()
+        self.now = datetime.datetime.now()  # noqa: DTZ005
 
         # letter_spacing_factor: 1.0 = normal tracking, <1 = tighter, >1 = looser
         self.letter_spacing_factor = 1.0
@@ -88,7 +88,7 @@ class WavyClock(Gtk.DrawingArea):
             self._font_desc = font_desc
 
     def on_tick(self):
-        self.now = datetime.datetime.now()
+        self.now = datetime.datetime.now()  # noqa: DTZ005
         self.queue_draw()
         return True
 
@@ -167,7 +167,7 @@ class WavyClock(Gtk.DrawingArea):
         ctx.fill()
 
     def _draw_curved_date(self, ctx, cx, cy, second_angle, second_orbit, dot_radius):
-        text_str = datetime.datetime.now().strftime("%a %d")
+        text_str = datetime.datetime.now().strftime("%a %d")  # noqa: DTZ005
         base_text_angle = second_angle + math.pi
 
         layout = PangoCairo.create_layout(ctx)

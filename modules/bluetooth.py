@@ -18,7 +18,7 @@ from utils.cursor import add_hover_cursor
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk  # type: ignore
 
 WINDOW_MAX_WIDTH = 250
 WINDOW_MAX_HEIGHT = 250

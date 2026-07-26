@@ -3,12 +3,11 @@ from fabric.widgets.label import Label
 from fabric.widgets.button import Button
 from fabric.widgets.revealer import Revealer
 
+from widgets.material_label import MaterialIconLabel
 from widgets.overrides import PatchedX11Window as Window
 
-from services.metrics import MetricsProvider
 from modules.controls import ControlsManager
-
-from widgets.material_label import MaterialIconLabel
+from services.metrics import MetricsProvider
 
 import icons
 from config.config import config

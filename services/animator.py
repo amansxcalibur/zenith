@@ -1,6 +1,6 @@
 from typing import cast
 from fabric import Service, Signal, Property
-from gi.repository import GLib, Gtk
+from gi.repository import GLib, Gtk  # type: ignore
 
 
 class Animator(Service):
@@ -14,7 +14,6 @@ class Animator(Service):
     @bezier_curve.setter
     def bezier_curve(self, value: tuple[float, float, float, float]):
         self._bezier_curve = value
-        return
 
     @Property(float, "read-write")
     def value(self):
@@ -23,7 +22,6 @@ class Animator(Service):
     @value.setter
     def value(self, value: float):
         self._value = value
-        return
 
     @Property(float, "read-write")
     def max_value(self):
@@ -32,7 +30,6 @@ class Animator(Service):
     @max_value.setter
     def max_value(self, value: float):
         self._max_value = value
-        return
 
     @Property(float, "read-write")
     def min_value(self):
@@ -41,7 +38,6 @@ class Animator(Service):
     @min_value.setter
     def min_value(self, value: float):
         self._min_value = value
-        return
 
     @Property(bool, "read-write", default_value=False)
     def playing(self):
@@ -50,7 +46,6 @@ class Animator(Service):
     @playing.setter
     def playing(self, value: bool):
         self._playing = value
-        return
 
     @Property(bool, "read-write", default_value=False)
     def repeat(self):
@@ -59,7 +54,6 @@ class Animator(Service):
     @repeat.setter
     def repeat(self, value: bool):
         self._repeat = value
-        return
 
     def __init__(
         self,
@@ -145,7 +139,6 @@ class Animator(Service):
             else:
                 GLib.source_remove(self._tick_handler)
         self._tick_handler = None
-        return
 
     def play(self):
         if self.playing:

@@ -1,6 +1,6 @@
 import os
 from loguru import logger
-from gi.repository import Gio
+from gi.repository import Gio  # type: ignore
 
 from fabric.core.service import Service, Signal
 from fabric.utils.helpers import monitor_file, exec_shell_command_async

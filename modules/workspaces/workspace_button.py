@@ -50,7 +50,7 @@ from fabric.i3.widgets import WorkspaceButton as FabricWorkspaceButton
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk  # type: ignore
 
 
 class WorkspaceShapeMorph(Gtk.DrawingArea):
@@ -187,7 +187,7 @@ class WorkspaceShapeMorph(Gtk.DrawingArea):
 
         self.queue_draw()
         return True
-    
+
     def _safely_start_animation(self, direction: bool):
         if self.glib_id is not None:
             GLib.source_remove(self.glib_id)
@@ -202,7 +202,7 @@ class WorkspaceShapeMorph(Gtk.DrawingArea):
             self.progress = 0.0
             # only changing shape if all prev animations are done
             self._prepare_next_morph()
-        
+
         # morph from 0.0 to 1.0
         self._safely_start_animation(True)
 

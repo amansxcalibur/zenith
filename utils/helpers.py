@@ -5,11 +5,12 @@ import hashlib
 import subprocess
 from pathlib import Path
 from loguru import logger
+from collections.abc import Callable
 
 from fabric.utils.helpers import bulk_replace
 from config.info import ROOT_DIR
 
-from gi.repository import Gio, GLib
+from gi.repository import Gio, GLib  # type: ignore
 
 
 def toggle_class(widget, remove, add):
@@ -39,8 +40,8 @@ def open_settings():
 
 def exec_shell_command_async_with_cwd(
     cmd: str | list[str],
-    callback: callable = None,
-    cwd: str = None,
+    callback: Callable | None = None,
+    cwd: str | None = None,
 ) -> tuple[Gio.Subprocess | None, Gio.DataInputStream]:
     launcher = Gio.SubprocessLauncher.new(
         Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
@@ -87,7 +88,7 @@ def hash_file(file_path: Path) -> str:
 
 
 def get_screen_resolution_gdk() -> tuple[int, int]:
-    from gi.repository import Gdk
+    from gi.repository import Gdk  # type: ignore
 
     display = Gdk.Display.get_default()
     if not display:

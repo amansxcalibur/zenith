@@ -9,7 +9,6 @@ import os
 import bisect
 import tempfile
 from loguru import logger
-from typing import Callable
 from datetime import datetime
 from functools import lru_cache
 
@@ -33,13 +32,13 @@ from .common import NotificationConfig
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gtk, GLib, GObject  # noqa: E402
+from gi.repository import GdkPixbuf, Gtk, GLib, GObject  # type: ignore
 
 
-_icon_resolver: "IconResolver | None" = None
+_icon_resolver: IconResolver | None = None
 
 
-def _get_icon_resolver() -> "IconResolver":
+def _get_icon_resolver() -> IconResolver:
     global _icon_resolver
     if _icon_resolver is None:
         _icon_resolver = IconResolver()
@@ -91,7 +90,7 @@ def _resolve_app_icon(notification, size: int = 28) -> Gtk.Widget:
             img.show()
             return img
         except Exception:
-            pass
+            logger.error("Failed to resolve pixbuf app icon")
 
     # fallback
     fallback = MaterialIconLabel(
@@ -258,7 +257,7 @@ class NotificationWidget(Box):
     def _build_expanded_page(self, notification: Notification) -> Box:
         summary = notification.summary or ""
         body = notification.body or ""
-        time_text = datetime.fromtimestamp(self.timestamp).strftime("%H:%M")
+        time_text = datetime.fromtimestamp(self.timestamp).strftime("%H:%M")  # noqa: DTZ006
         max_c = NotificationConfig.MAX_CHARS_PER_LINE
 
         # expander button
@@ -413,18 +412,17 @@ class NotificationWidget(Box):
                 pixbuf = scaled or pixbuf
                 tmp_dir = "/tmp/zenith-shell/notif-imgs"
                 os.makedirs(tmp_dir, exist_ok=True)
-                tmp = tempfile.NamedTemporaryFile(
+                with tempfile.NamedTemporaryFile(
                     suffix=".png",
                     delete=False,
                     dir=tmp_dir,
                     prefix=f"notif-{notification.id}-",
-                )
-                tmp.close()
-                pixbuf.savev(tmp.name, "png", [], [])
-                return tmp.name
+                ) as tmp:
+                    tmp_name = tmp.name
+                pixbuf.savev(tmp_name, "png", [], [])
+                return tmp_name
         except Exception:
             logger.error("Couldn't resolve image path")
-            pass
 
         return None
 
@@ -440,8 +438,8 @@ class NotificationWidget(Box):
         if self._closed_connection is not None and self._notification is not None:
             try:
                 self._notification.disconnect(self._closed_connection)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to disconnect close connection handler: {e}")
             self._closed_connection = None
 
         self._scaled_pixbuf = None
@@ -450,7 +448,7 @@ class NotificationWidget(Box):
 
 class NotificationGroup(AnimatedClippingBox):
     # dont look at me funny now. I was tired trying to figure out what went wrong with @Signal
-    __gsignals__ = {
+    __gsignals__ = {  # noqa: RUF012
         "timestamp-change": (GObject.SignalFlags.RUN_LAST, None, (int,)),
     }
 
@@ -475,7 +473,7 @@ class NotificationGroup(AnimatedClippingBox):
         toggle_class(widget, remove_class, add_class)
 
     def __init__(
-        self, app_name: str, on_empty: Callable[["NotificationGroup"], None], **kwargs
+        self, app_name: str, on_empty: callable[[NotificationGroup], None], **kwargs
     ):
         super().__init__(
             name="notif-group-container",
@@ -678,7 +676,7 @@ class NotificationGroup(AnimatedClippingBox):
 
         top = self._top_widget()
         self.timestamp_label.set_label(
-            datetime.fromtimestamp(self.latest_timestamp).strftime("%H:%M")
+            datetime.fromtimestamp(self.latest_timestamp).strftime("%H:%M")  # noqa: DTZ006
         )
         if top:
             self._sync_icon(top._notification)
@@ -756,7 +754,7 @@ class NotificationGroup(AnimatedClippingBox):
             try:
                 widget._notification.close()
             except Exception:
-                pass
+                logger.error("Failed to close notification")
 
     def _on_widget_destroyed(self, widget: NotificationWidget) -> None:
         self.remove_widget(widget)

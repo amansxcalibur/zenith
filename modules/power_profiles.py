@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.overlay import Overlay
@@ -12,11 +14,11 @@ import icons
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk  # type: ignore
 
 
 class PowerProfilesSelector(EventBox):
-    ICON_MAP = {
+    ICON_MAP: ClassVar[dict[str, str]] = {
         "power-saver": icons.energy_savings_leaf,
         "balanced": icons.balance,
         "performance": icons.rocket_launch,

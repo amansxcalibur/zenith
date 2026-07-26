@@ -1,12 +1,12 @@
 from loguru import logger
 
-from widgets.overrides import Svg
 from fabric.widgets.box import Box
 from fabric.widgets.label import Label
 from fabric.widgets.button import Button
 from fabric.widgets.overlay import Overlay
 from fabric.widgets.eventbox import EventBox
 
+from widgets.overrides import Svg
 from widgets.material_label import MaterialIconLabel
 from widgets.animated_scale import AnimatedScale, AnimatedCircularScale
 from services.volume_service import VolumeService
@@ -22,7 +22,7 @@ class VolumeSlider(AnimatedScale):
             orientation="h" if not config.VERTICAL else "v",
             h_expand=True,
             has_origin=True,
-            inverted=True if config.VERTICAL else False,
+            inverted=bool(config.VERTICAL),
             style_classes="" if not config.VERTICAL else "vertical",
             increments=(0.01, 0.1),
             **kwargs,
@@ -69,7 +69,7 @@ class VolumeMaterial3(AnimatedScale):
             orientation=orientation,
             h_expand=True,
             has_origin=True,
-            inverted=False if orientation == "h" else True,
+            inverted=orientation != "h",
             style_classes="" if orientation == "h" else "vertical",
             increments=(0.01, 0.1),
             **kwargs,
@@ -201,7 +201,7 @@ class MicSlider(AnimatedScale):
             orientation="h" if not config.VERTICAL else "v",
             h_expand=True,
             has_origin=True,
-            inverted=True if config.VERTICAL else False,
+            inverted=bool(config.VERTICAL),
             style_classes="" if not config.VERTICAL else "vertical",
             increments=(0.01, 0.1),
             **kwargs,
@@ -248,7 +248,7 @@ class MicMaterial3(AnimatedScale):
             orientation=orientation,
             h_expand=True,
             has_origin=True,
-            inverted=False if orientation == "h" else True,
+            inverted=orientation != "h",
             style_classes="" if orientation == "h" else "vertical",
             increments=(0.01, 0.1),
             **kwargs,

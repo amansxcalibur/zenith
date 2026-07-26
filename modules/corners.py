@@ -3,7 +3,7 @@ from fabric.widgets.shapes import Corner
 
 from widgets.overrides import PatchedX11Window as Window
 
-from gi.repository import Gdk
+from gi.repository import Gdk # type: ignore
 
 
 class MyCorner(Box):

@@ -26,7 +26,7 @@ from config.config import config
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib  # noqa: E402
+from gi.repository import GLib  # type: ignore
 
 
 class PlayerAudioScaleMaterial3(AnimatedScale):
@@ -36,7 +36,7 @@ class PlayerAudioScaleMaterial3(AnimatedScale):
             orientation=orientation,
             h_expand=True,
             has_origin=True,
-            inverted=False if orientation == "h" else True,
+            inverted=orientation != "h",
             style_classes="" if orientation == "h" else "vertical",
             increments=(0.01, 0.01),
             max_value=1.0,
@@ -909,33 +909,28 @@ class PlayerContainer(Box):
             self.window.add_keybinding(key, lambda *_, h=handler: h())
 
     def unregister_keybindings(self):
-        for key in self._keybindings().keys():
+        for key in self._keybindings():
             self.window.remove_keybinding(key)
 
     def handle_play_pause(self):
-        if current := self.stack.get_visible_child():
-            if isinstance(current, Player):
-                current.handle_play_pause()
+        if (current := self.stack.get_visible_child()) and isinstance(current, Player):
+            current.handle_play_pause()
 
     def handle_prev(self):
-        if current := self.stack.get_visible_child():
-            if isinstance(current, Player):
-                current.handle_prev()
+        if (current := self.stack.get_visible_child()) and isinstance(current, Player):
+            current.handle_prev()
 
     def handle_next(self):
-        if current := self.stack.get_visible_child():
-            if isinstance(current, Player):
-                current.handle_next()
+        if (current := self.stack.get_visible_child()) and isinstance(current, Player):
+            current.handle_next()
 
     def handle_skip_forward(self):
-        if current := self.stack.get_visible_child():
-            if isinstance(current, Player):
-                current.skip_forward(seconds=10)
+        if (current := self.stack.get_visible_child()) and isinstance(current, Player):
+            current.skip_forward(seconds=10)
 
     def handle_skip_backward(self):
-        if current := self.stack.get_visible_child():
-            if isinstance(current, Player):
-                current.skip_backward(seconds=10)
+        if (current := self.stack.get_visible_child()) and isinstance(current, Player):
+            current.skip_backward(seconds=10)
 
     def switch_relative_player(self, forward=True):
         if not self.player_widgets:

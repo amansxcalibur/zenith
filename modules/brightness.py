@@ -13,7 +13,7 @@ import subprocess
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk  # noqa: E402
+from gi.repository import Gdk # type: ignore
 
 
 def supports_backlight():
@@ -36,7 +36,7 @@ class BrightnessSlider(AnimatedScale):
             orientation="h" if not config.VERTICAL else "v",
             h_expand=True,
             has_origin=True,
-            inverted=True if config.VERTICAL else False,
+            inverted=bool(config.VERTICAL),
             style_classes="" if not config.VERTICAL else "vertical",
             increments=(0.01, 0.1),
             **kwargs,
@@ -157,7 +157,7 @@ class BrightnessMaterial3(AnimatedScale):
             orientation=orientation,
             h_expand=True,
             has_origin=True,
-            inverted=False if orientation == "h" else True,
+            inverted=orientation != "h",
             style_classes="" if orientation == "h" else "vertical",
             increments=(0.01, 0.1),
             **kwargs,

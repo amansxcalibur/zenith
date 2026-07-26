@@ -5,7 +5,7 @@ from services.animator import Animator
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib  # type: ignore
 
 
 class ShellWindowManager:
@@ -89,7 +89,7 @@ class ShellWindowManager:
 
     def _set_dock_state(self, source, drag_state, x: int, y: int):
         geo = self._get_monitor_geometry(self.pill)
-        win_w, win_h = self.pill.get_size()
+        _, win_h = self.pill.get_size()
 
         pill_is_in_dock_zone = (y + win_h) > (geo.height - self.DOCK_HEIGHT) and (
             geo.width // 4 < x < 3 * geo.width // 4
@@ -220,7 +220,7 @@ class ShellWindowManager:
     def _connect_geometry_enforcement(self, widget): ...
 
     def _get_nat_width(self, widget: Gtk.Widget) -> int:
-        min_w, nat_w = widget.get_preferred_width()
+        _, nat_w = widget.get_preferred_width()
         return nat_w
 
     def _check_horizontal_overflow(self) -> bool:

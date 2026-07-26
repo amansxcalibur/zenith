@@ -17,19 +17,19 @@ from config.info import TEMP_DIR, ROOT_DIR
 import gi
 
 gi.require_version("Playerctl", "2.0")
-from gi.repository import Playerctl, GLib, Gio  # noqa: E402
+from gi.repository import Playerctl, GLib, Gio # type: ignore
 
 
 def check_shuffle_strictly(bus_name):
     if not bus_name:
         return False
-        
+
     if not bus_name.startswith("org.mpris.MediaPlayer2."):
         bus_name = f"org.mpris.MediaPlayer2.{bus_name}"
 
     if not Gio.dbus_is_name(bus_name):
         return False
-    
+
     # setup D-Bus proxy
     connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
@@ -333,6 +333,7 @@ class PlayerService(Service):
                 text=True,
                 timeout=10,
                 shell=False,  # to handle paths with spaces
+                check=True,
             )
 
             if result.returncode == 0:

@@ -11,8 +11,8 @@ from modules.weather import WeatherPill
 from modules.bluetooth import Bluetooth
 from modules.wavy_clock import WavyClock
 from modules.tile import TileSpecial, TileSimple
-from modules.notifications.notification import NotificationTile
 from modules.player_mini import PlayerContainerMini
+from modules.notifications.notification import NotificationTile
 from widgets.material_label import MaterialIconLabel
 from widgets.popup_window import PopSlot, FlyingOverlay
 

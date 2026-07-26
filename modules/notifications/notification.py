@@ -1,8 +1,9 @@
 import time
 import random
 from loguru import logger
-from typing import Callable
+from typing import ClassVar
 from datetime import datetime
+from collections.abc import Callable
 from expressive_shapes.shapes.shape_presets import (
     fan,
     gem,
@@ -63,7 +64,7 @@ from .common import NotificationConfig, NotificationNotifier
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gdk, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, Gdk, GLib # type: ignore
 
 
 class NotificationTile(TileSimple):
@@ -101,7 +102,7 @@ class NotificationTile(TileSimple):
 
 
 class ActiveNotificationWidget(EventBox):
-    _SHAPES = [
+    _SHAPES: ClassVar = [
         fan,
         gem,
         bun,
@@ -139,8 +140,8 @@ class ActiveNotificationWidget(EventBox):
     def __init__(
         self,
         notification: Notification,
-        timeout_callback: Callable,
-        on_close_callback: Callable,
+        timeout_callback: callable,
+        on_close_callback: callable,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -153,7 +154,7 @@ class ActiveNotificationWidget(EventBox):
         self._closed_connection = None
         self._timeout_repeater_id = None
         self._scaled_pixbuf = None
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now()  # noqa: DTZ005
         self.urgency = notification.urgency
 
         body_container = Box(name="notification-box", orientation="v", spacing=10)
@@ -420,7 +421,7 @@ class NotificationGroupCarousal(Box):
         self,
         main_scrolled_window: ScrolledWindow,
         main_viewport: Box,
-        on_icon_clicked: callable = None,
+        on_icon_clicked: Callable | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -732,7 +733,7 @@ class NotificationManager:
 
     def unregister_keybindings(self):
         window = self.notification_history.get_toplevel()
-        for key in self._keybindings().keys():
+        for key in self._keybindings():
             window.remove_keybinding(key)
 
     # TODO: sync system
@@ -938,7 +939,7 @@ class NotificationManager:
                     self._handle_notification_added
                 )
             except Exception:
-                pass
+                logger.error("Failed to disconnect notification added handler")
             self._notification_service = None
 
         self.close_all_notifications()

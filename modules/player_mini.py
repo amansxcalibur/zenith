@@ -8,6 +8,7 @@ from fabric.widgets.stack import Stack
 from fabric.widgets.button import Button
 from fabric.widgets.eventbox import EventBox
 from fabric.widgets.centerbox import CenterBox
+
 if TYPE_CHECKING:
     from fabric.widgets.widget import Widget
 
@@ -27,7 +28,7 @@ from loguru import logger
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib  # noqa: E402
+from gi.repository import GLib  # type: ignore
 
 
 def apply_filter_to_player_art(widget: Widget, art_url: str):
@@ -656,7 +657,7 @@ class PlayerContainerMini(Box):
 
         def _update_mini_tile_icon():
             self.mini_tile_icon.set_name(curr_player)
-            self.mini_tile_icon.set_from_string((getattr(svg, curr_player, svg.disc)))
+            self.mini_tile_icon.set_from_string(getattr(svg, curr_player, svg.disc))
 
         GLib.idle_add(_update_mini_tile_icon)
 

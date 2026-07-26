@@ -15,7 +15,7 @@ import icons
 import gi
 
 gi.require_version("Gray", "0.1")
-from gi.repository import Gray, Gtk, Gdk, GdkPixbuf, GLib
+from gi.repository import Gray, Gtk, Gdk, GdkPixbuf, GLib  # type: ignore
 
 
 class NotificationIndicator(Box):
@@ -92,7 +92,7 @@ class SystemTray(Box):
         self.watcher = Gray.Watcher()
         self.watcher.connect("item-added", self.on_item_added)
         self.clipper = ClippingBox(
-            name='systray-clipper',
+            name="systray-clipper",
             spacing=1,
             orientation=("v" if config.VERTICAL else "h"),
         )
