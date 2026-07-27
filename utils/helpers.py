@@ -18,13 +18,13 @@ def toggle_class(widget, remove, add):
     widget.add_style_class(add)
 
 
-_settings_process: Gio.Subprocess | None = None
+_settings_process: subprocess.Popen | None = None
 
 
 def open_settings():
     global _settings_process
 
-    if _settings_process and not _settings_process.get_if_exited():
+    if _settings_process is not None and _settings_process.poll() is None:
         return
 
     logger.debug(f"Opening settings module from root: {ROOT_DIR}")
@@ -35,7 +35,7 @@ def open_settings():
     #     cmd=["sh", "-c", shell_command], cwd=ROOT_DIR
     # )
 
-    subprocess.Popen([sys.executable, "-m", "settings"], cwd=ROOT_DIR)
+    _settings_process = subprocess.Popen([sys.executable, "-m", "settings"], cwd=ROOT_DIR)
 
 
 def exec_shell_command_async_with_cwd(

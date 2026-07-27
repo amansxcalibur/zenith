@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import ClassVar
-from functools import lru_cache
+
+# from functools import lru_cache
 from collections.abc import Iterator
 
 from fabric.widgets.box import Box
@@ -20,17 +21,6 @@ import icons
 from config.config import config
 
 from gi.repository import GLib, Gdk, Gtk  # type: ignore
-
-
-@lru_cache(maxsize=256)
-def _get_filtered_apps(all_apps, query: str) -> tuple[DesktopApp, ...]:
-    query_lower = query.casefold()
-    return [
-        app
-        for app in all_apps
-        if query_lower
-        in f"{app.display_name or ''} {app.name} {app.generic_name or ''}".casefold()
-    ]
 
 
 class AppCommands(Enum):
@@ -95,7 +85,7 @@ class AppLauncher(Box):
 
         self._pill = pill
         self._arranger_handler = 0
-        self._all_apps: list[DesktopApp] = []
+        self._all_apps: tuple[DesktopApp] = ()
         self._launcher_bindings_config = config.bindings.modules.launcher
         self.current_mode = self.MODE_APP
         self.selected_index = -1
@@ -263,11 +253,13 @@ class AppLauncher(Box):
         self.add(self.overlay)
 
     def _reload_apps(self):
-        self._all_apps = sorted(
-            get_desktop_applications(),
-            key=lambda app: (app.display_name or "").casefold(),
+        self._all_apps = tuple(
+            sorted(
+                get_desktop_applications(),
+                key=lambda app: (app.display_name or "").casefold(),
+            )
         )
-        _get_filtered_apps.cache_clear()  # lru_cache bust on reload
+        # self._get_filtered_apps.cache_clear()  # lru_cache bust on reload
 
     def _on_hover_enter(self, widget, event):
         if event.detail != Gdk.NotifyType.INFERIOR:
@@ -457,7 +449,7 @@ class AppLauncher(Box):
     def _arrange_app_mode(self, query):
         self._clear_viewport()
 
-        filtered_apps = _get_filtered_apps(self._all_apps, query)
+        filtered_apps = self._get_filtered_apps(query)
 
         self._arranger_handler = idle_add(
             lambda apps_iter: (
@@ -467,6 +459,16 @@ class AppLauncher(Box):
             iter(filtered_apps),
             pin=True,
         )
+
+    # @lru_cache(maxsize=256)
+    def _get_filtered_apps(self, query: str) -> tuple[DesktopApp, ...]:
+        query_lower = query.casefold()
+        return [
+            app
+            for app in self._all_apps
+            if query_lower
+            in f"{app.display_name or ''} {app.name} {app.generic_name or ''}".casefold()
+        ]
 
     def _clear_viewport(self):
         remove_handler(self._arranger_handler) if self._arranger_handler else None
@@ -634,7 +636,7 @@ class AppLauncher(Box):
     def close_launcher(self):
         self.viewport.children = []
         self.selected_index = -1
-        _get_filtered_apps.cache_clear()
+        # _get_filtered_apps.cache_clear()
         self._pill.close()
 
     def open_launcher(self):
