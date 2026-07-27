@@ -13,7 +13,7 @@ def main():
     setproctitle.setproctitle(SHELL_NAME + "-settings")
     GLib.set_prgname(SHELL_NAME + "-settings")
 
-    app = Application("material-icon-test", open_inspector=False)
+    app = Application(f"{SHELL_NAME}-settings", open_inspector=False)
 
     win = SettingsWindow()
     win.show_all()

@@ -11,12 +11,12 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib
 
+
 class AnimatedBarGraph(Gtk.DrawingArea):
     DEFAULT_HISTORY = 30
 
     def __init__(
         self,
-        color: str | tuple = (0.1, 0.6, 0.9),
         bar_width: int = 4,
         spacing: int = 8,
         history_seconds: int = DEFAULT_HISTORY,
@@ -24,7 +24,6 @@ class AnimatedBarGraph(Gtk.DrawingArea):
         super().__init__()
         self.set_size_request(350, 250)
 
-        self.color = color
         self.bar_width = bar_width
         self.spacing = spacing
         self.growth_dur = 0.5  # seconds for a bar to reach full height
@@ -135,13 +134,13 @@ class CircularGraph(Gtk.DrawingArea):
         self.is_animating = False
 
         self.connect("draw", self._on_draw)
-        
+
         self.show_all()
 
     def _update_targets(self, targets: list) -> bool:
         self.target_usage = targets
 
-        # rather skip quick updates than get stuck in 
+        # rather skip quick updates than get stuck in
         # the middle due to fast updates
         if not self.is_animating:
             self.is_animating = True
@@ -150,10 +149,10 @@ class CircularGraph(Gtk.DrawingArea):
 
     def _animate(self) -> bool:
         still_moving = False
-        
+
         for i in range(self.bar_count):
             diff = self.target_usage[i] - self.current_usage[i]
-            
+
             if abs(diff) > self.EPSILON:
                 self.current_usage[i] += diff * self.LERP_SPEED
                 still_moving = True
@@ -164,8 +163,8 @@ class CircularGraph(Gtk.DrawingArea):
 
         if not still_moving:
             self.is_animating = False
-            return False 
-            
+            return False
+
         return True
 
     def _on_draw(self, widget, cr) -> bool:

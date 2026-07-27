@@ -219,3 +219,13 @@
   color: var(--outline);
   font-size: 14px;
 }
+
+#slider-mui.metrics-popup highlight {
+  box-shadow: 4px 0 0 4px var(--shadow);
+}
+#slider-mui.metrics-popup slider {
+  box-shadow: 0 0 0 4px var(--shadow);
+}
+#slider-mui.metrics-popup:hover slider {
+  box-shadow: 1px 0 0 4px var(--shadow);
+}

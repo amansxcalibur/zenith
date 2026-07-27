@@ -41,10 +41,10 @@ class Metrics(Box):
 
     def _build_widgets(self):
         self.cpu_graph = AnimatedBarGraph(
-            bar_width=4, color="#3498db", history_seconds=HISTORY_DEF
+            bar_width=4, history_seconds=HISTORY_DEF
         )
         self.mem_graph = AnimatedBarGraph(
-            bar_width=4, color="#2ecc71", history_seconds=HISTORY_DEF
+            bar_width=4, history_seconds=HISTORY_DEF
         )
         self.cpu_circular_graph = CircularGraph(bar_count=psutil.cpu_count())
 
@@ -90,6 +90,7 @@ class Metrics(Box):
     def _make_history_slider(self, graph: AnimatedBarGraph) -> Box:
         slider = Scale(
             name="slider-mui",
+            style_classes="metrics-popup",
             orientation="h",
             h_expand=True,
             increments=(1, 1),
