@@ -6,7 +6,13 @@ from fabric.utils.helpers import exec_shell_command_async
 
 from widgets.clipping_box import ClippingBox
 from widgets.elastic.elastic_stack import ElasticStack
-from widgets.overrides import PatchedX11Window as Window
+from config.info import IS_WAYLAND
+
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
+
 from services.power_profiles import power_profiles_service
 
 from modules.dashboard import Dashboard
@@ -19,7 +25,13 @@ from modules.workspaces.workspaces import ActiveWindow
 
 from config.config import config
 from config.info import SHELL_NAME, USERNAME, HOSTNAME
-from utils.helpers import open_settings
+from utils.helpers import (
+    open_settings,
+    dump_layer_info,
+    get_absolute_wayland_widget_position,
+)
+
+from gi.repository import GtkLayerShell, GLib  # type: ignore
 
 
 class Pill(Window, Service):
@@ -32,16 +44,31 @@ class Pill(Window, Service):
     def on_drag_end(self, drag_state: object): ...
 
     def __init__(self, **kwargs):
-        super().__init__(
-            name="pill",
-            layer="top",
-            geometry="bottom",
-            type_hint="normal",
-            margin=(0, 0, 0, 0),
-            visible=True,
-            all_visible=True,
-        )
-        self.set_role(self.WIN_ROLE)
+        if IS_WAYLAND:
+            super().__init__(
+                name="pill",
+                layer="top",
+                keyboard_mode="on-demand",
+                anchor="bottom",
+                exclusivity="none",
+                margin=(0, 0, 0, 0),
+                visible=True,
+                all_visible=True,
+            )
+            GtkLayerShell.set_exclusive_zone(self, -1)
+        else:
+            super().__init__(
+                name="pill",
+                layer="top",
+                geometry="bottom",
+                type_hint="normal",
+                margin=(0, 0, 0, 0),
+                visible=True,
+                all_visible=True,
+            )
+        if not IS_WAYLAND:
+            self.set_role(self.WIN_ROLE)
+        dump_layer_info(self)
 
         self._current_compact_mode = None
         self._dock_is_visible = True
@@ -52,6 +79,8 @@ class Pill(Window, Service):
             "offset_x": 0,
             "offset_y": 0,
             "start_pos": None,
+            "last_x": 0,
+            "last_y": 0,
         }
         self._animations_enabled = (
             power_profiles_service.active_profile != "power-saver"
@@ -123,6 +152,20 @@ class Pill(Window, Service):
         power_profiles_service.connect("changed", self._on_power_profile_changed)
         self.connect("delete-event", self.on_delete_event)
 
+        if IS_WAYLAND:
+            self.stack.get_inner_stack().connect(
+                "notify::transition-running", self._on_transition_done
+            )
+
+    def _on_transition_done(self, stack, pspec):
+        if stack.get_transition_running():
+            return
+        child = stack.get_visible_child()
+        if child == self.launcher:
+            entry = getattr(child, "search_entry", None)
+            if entry and not entry.has_focus():
+                GLib.idle_add(entry.grab_focus)
+
     def _on_power_profile_changed(self, *_):
         self._animations_enabled = (
             power_profiles_service.active_profile != "power-saver"
@@ -130,10 +173,16 @@ class Pill(Window, Service):
         self.stack.set_bounce(self._animations_enabled)
 
     def focus_pill(self):
-        exec_shell_command_async(f'i3-msg [window_role="^{self.WIN_ROLE}$"] focus')
+        if IS_WAYLAND:
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        else:
+            exec_shell_command_async(f'i3-msg [window_role="^{self.WIN_ROLE}$"] focus')
 
     def unfocus_pill(self):
-        exec_shell_command_async("i3-msg focus mode_toggle")
+        if IS_WAYLAND:
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+        else:
+            exec_shell_command_async("i3-msg focus mode_toggle")
 
     def lift_pill(self):
         if self._dock_is_visible and (
@@ -161,6 +210,7 @@ class Pill(Window, Service):
             lambda: (
                 # self.launcher.open_launcher(),
                 self.launcher.search_entry.set_text(""),
+                print("grab focus via keybind via sway wm"),
                 self.launcher.search_entry.grab_focus(),
             ),
         )
@@ -242,12 +292,40 @@ class Pill(Window, Service):
         self._current_compact_mode = _next_mode
 
     def on_button_press(self, widget, event):
-        if event.button == 1:  # Left mouse button
-            self._drag_state["dragging"] = True
-            win_x, win_y = self.get_position()
-            self._drag_state["offset_x"] = event.x_root - win_x
-            self._drag_state["offset_y"] = event.y_root - win_y
-            self._drag_state["start_pos"] = (win_x, win_y)
+        if event.button != 1:  # not left mouse button
+            return
+
+        self._drag_state["dragging"] = True
+        # self._drag_state["last_x"] = event.x_root
+        # self._drag_state["last_y"] = event.y_root
+
+        x, y = self.get_current_position()
+
+        if IS_WAYLAND:
+            self._old_anchors = {
+                edge: GtkLayerShell.get_anchor(self, edge)
+                for edge in (
+                    GtkLayerShell.Edge.TOP,
+                    GtkLayerShell.Edge.BOTTOM,
+                    GtkLayerShell.Edge.LEFT,
+                    GtkLayerShell.Edge.RIGHT,
+                )
+            }
+            self._old_margins = {
+                edge: GtkLayerShell.get_margin(self, edge) for edge in self._old_anchors
+            }
+
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
+
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, y)
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, x)
+
+        self._drag_state["offset_x"] = event.x_root - x
+        self._drag_state["offset_y"] = event.y_root - y
+        self._drag_state["start_pos"] = (x, y)
 
     def on_motion(self, widget, event):
         if not self._drag_state["dragging"]:
@@ -256,8 +334,11 @@ class Pill(Window, Service):
         new_x = int(event.x_root - self._drag_state["offset_x"])
         new_y = int(event.y_root - self._drag_state["offset_y"])
 
-        self.on_drag(self._drag_state, new_x, new_y)
-        self.move(new_x, new_y)
+        # self._drag_state["last_x"] = event.x_root
+        # self._drag_state["last_y"] = event.y_root
+
+        self.set_current_position(new_x, new_y)
+        self.on_drag(self._drag_state, new_x, new_y)  # always absolute now
 
     def on_button_release(self, widget, event):
         if event.button != 1 or not self._drag_state["dragging"]:
@@ -265,6 +346,20 @@ class Pill(Window, Service):
 
         self._drag_state["dragging"] = False
         self.on_drag_end(self._drag_state)
+
+    def get_current_position(self):
+        # top left coordinates
+        if not IS_WAYLAND:
+            return self.get_position()
+        success, x, y = get_absolute_wayland_widget_position(self)
+        return (x, y) if success else (0, 0)
+
+    def set_current_position(self, x, y):
+        if IS_WAYLAND:
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, int(x))
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, int(y))
+        else:
+            self.move(int(x), int(y))
 
     def get_drag_state(self):
         return self._drag_state

@@ -1,9 +1,14 @@
 from fabric.widgets.box import Box
 from fabric.widgets.shapes import Corner
 
-from widgets.overrides import PatchedX11Window as Window
+from config.info import IS_WAYLAND
 
-from gi.repository import Gdk # type: ignore
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
+
+from gi.repository import GtkLayerShell, Gdk  # type: ignore
 
 
 class MyCorner(Box):
@@ -20,15 +25,28 @@ class MyCorner(Box):
 
 class Corners(Window):
     def __init__(self, radius: int):
-        super().__init__(
-            layer="top",
-            geometry="top",
-            type_hint="normal",
-            focusable=False,
-            visible=True,
-            pass_through=True,
-            all_visible=True,
-        )
+        if IS_WAYLAND:
+            super().__init__(
+                layer="top",
+                keyboard_mode="none",
+                anchor="top bottom left right",
+                exclusivity="none",
+                margin=(0, 0, 0, 0),
+                pass_through = True,
+                visible=True,
+                all_visible=True,
+            )
+            GtkLayerShell.set_exclusive_zone(self, -1)
+        else:
+            super().__init__(
+                layer="top",
+                geometry="top",
+                type_hint="normal",
+                focusable=False,
+                visible=True,
+                pass_through=True,
+                all_visible=True,
+            )
 
         display = Gdk.Display.get_default()
         monitor = display.get_monitor_at_window(self.get_window())

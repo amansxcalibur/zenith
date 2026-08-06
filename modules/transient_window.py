@@ -4,7 +4,12 @@ from fabric.widgets.button import Button
 from fabric.widgets.revealer import Revealer
 
 from widgets.material_label import MaterialIconLabel
-from widgets.overrides import PatchedX11Window as Window
+
+from config.info import IS_WAYLAND
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
 
 from modules.controls import ControlsManager
 from services.metrics import MetricsProvider
@@ -91,14 +96,22 @@ class LowBatteryBanner(Revealer):
 
 class TransientWindow(Window):
     def __init__(self, **kwargs):
-        super().__init__(
-            name="notification-popup",
-            layer="top",
-            geometry="top",
-            type_hint="notification",
-            visible=False,
-            **kwargs,
-        )
+        if IS_WAYLAND:
+            super().__init__(
+                name="notification-popup",
+                layer="top",
+                visible=False,
+                **kwargs,
+            )
+        else:
+            super().__init__(
+                name="notification-popup",
+                layer="top",
+                geometry="top",
+                type_hint="notification",
+                visible=False,
+                **kwargs,
+            )
 
         self.controls = ControlsManager()
 

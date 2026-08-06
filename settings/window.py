@@ -4,7 +4,14 @@ from fabric.widgets.box import Box
 from fabric.widgets.label import Label
 from fabric.widgets.stack import Stack
 from fabric.widgets.button import Button
-from fabric.widgets.x11 import X11Window as Window
+from config.info import IS_WAYLAND
+
+# #
+if IS_WAYLAND:
+    from fabric.widgets.window import Window
+else:
+    from fabric.widgets.x11 import X11Window as Window
+
 from fabric.widgets.scrolledwindow import ScrolledWindow
 from fabric.utils.helpers import exec_shell_command_async
 
@@ -32,7 +39,7 @@ from .tabs import (
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib  # type: ignore
+from gi.repository import Gtk, Gdk, GLib  # type: ignore
 
 
 class DragHandler:
@@ -64,14 +71,22 @@ class DragHandler:
 
 class SettingsWindow(Window):
     def __init__(self):
-        super().__init__(
-            layer="top",
-            geometry="center",
-            type_hint="normal",
-            visible=True,
-            sticky=False,
-            all_visible=True,
-        )
+        if IS_WAYLAND:
+            super().__init__(
+                name="pill",
+                type="popup",
+                visible=True,
+                all_visible=True,
+            )
+        else:
+            super().__init__(
+                layer="top",
+                geometry="center",
+                type_hint="normal",
+                visible=True,
+                sticky=False,
+                all_visible=True,
+            )
 
         self.buttons = {}
         self.stack = None

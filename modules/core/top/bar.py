@@ -8,7 +8,12 @@ from fabric.widgets.eventbox import EventBox
 from fabric.widgets.x11 import X11WindowGeometry
 
 from widgets.clipping_box import ClippingBox
-from widgets.overrides import PatchedX11Window as Window
+from config.info import IS_WAYLAND
+
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
 from utils.helpers import toggle_class
 from utils.cursor import add_hover_cursor
 from config.config import config
@@ -16,7 +21,7 @@ from config.config import config
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk  # type: ignore
+from gi.repository import Gtk, GLib, Gdk, GtkLayerShell  # type: ignore
 
 SPACING = 0
 CONTROLS_SPACING = 5
@@ -26,15 +31,26 @@ CLEANUP_DELAY = 350
 
 class TopBar(Window):
     def __init__(self, pill, **kwargs):
-        super().__init__(
-            name="dock-bar",
-            layer="top",
-            geometry=f"{config.top_pill.POSITION.y}-{config.top_pill.POSITION.x}",
-            type_hint="notification",
-            visible=True,
-            all_visible=True,
-            **kwargs,
-        )
+        if IS_WAYLAND:
+            super().__init__(
+                layer="top",
+                title='zenith-top-bar',
+                anchor="top",
+                exclusivity="none",
+                pass_through=False,
+                visible=True,
+                all_visible=True,
+            )
+        else:
+            super().__init__(
+                name="dock-bar",
+                layer="top",
+                geometry=f"{config.top_pill.POSITION.y}-{config.top_pill.POSITION.x}",
+                type_hint="notification",
+                visible=True,
+                all_visible=True,
+                **kwargs,
+            )
         self._pill_ref = pill
 
         self.is_open = False
@@ -243,14 +259,20 @@ class TopBar(Window):
         if visible != self.is_open:
             visible = not visible
 
-        geometry = self.get_geometry()
+        if IS_WAYLAND:
+            is_left = GtkLayerShell.get_anchor(self, GtkLayerShell.Edge.LEFT)
+            is_right = GtkLayerShell.get_anchor(self, GtkLayerShell.Edge.RIGHT)
+        else:
+            geometry = self.get_geometry()
+            is_left = geometry == X11WindowGeometry.TOP_LEFT
+            is_right = geometry == X11WindowGeometry.TOP_RIGHT
 
-        if geometry == X11WindowGeometry.TOP_LEFT:
+        if is_left and not is_right:
             self.left_edge.set_visible(False)
             self.start_children.set_visible(False)
             self.right_edge.set_visible(visible)
             self.end_children.set_visible(visible)
-        elif geometry == X11WindowGeometry.TOP_RIGHT:
+        elif is_right and not is_left:
             self.left_edge.set_visible(visible)
             self.start_children.set_visible(visible)
             self.right_edge.set_visible(False)

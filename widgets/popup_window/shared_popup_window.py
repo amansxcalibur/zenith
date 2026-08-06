@@ -4,18 +4,25 @@ from fabric.widgets.box import Box
 from fabric.widgets.stack import Stack
 from fabric.widgets.eventbox import EventBox
 from fabric.widgets.revealer import Revealer
-from fabric.widgets.x11 import X11Window as Window
+from config.info import IS_WAYLAND
+
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
+
 
 from widgets.clipping_box import ClippingBox
 from services.animator import Animator
 from services.power_profiles import power_profiles_service
+from utils.helpers import get_absolute_wayland_widget_position
 from config.info import SHELL_NAME
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GLib", "2.0")
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import GtkLayerShell, Gdk, GLib, Gtk  # type: ignore
 
 
 class SharedPopupWindow(Window):
@@ -47,13 +54,24 @@ class SharedPopupWindow(Window):
         if self._initialized:
             return
 
-        super().__init__(
-            layer="top",
-            type_hint="normal",
-            visible=False,
-            all_visible=False,
-            **kwargs,
-        )
+        if IS_WAYLAND:
+            super().__init__(
+                layer="top",
+                keyboard_mode="on-demand",
+                anchor="bottom left",
+                exclusivity="none",
+                margin=(0, 0, 3, 0),
+                visible=False,
+                all_visible=False,
+            )
+        else:
+            super().__init__(
+                layer="top",
+                type_hint="normal",
+                visible=False,
+                all_visible=False,
+                **kwargs,
+            )
         self._initialized = True
         self.set_role(f"{SHELL_NAME}-popup")
 
@@ -201,10 +219,19 @@ class SharedPopupWindow(Window):
                         )
                         win = self.get_window()
                         if win:
-                            win.move(
-                                int(self._clamp_x(x)),
-                                int(self._get_target_baseline() - popup_widget_height),
+                            fin_x = int(self._clamp_x(x))
+                            fin_y = int(
+                                self._get_target_baseline() - popup_widget_height
                             )
+                            if IS_WAYLAND:
+                                GtkLayerShell.set_margin(
+                                    self, GtkLayerShell.Edge.LEFT, int(fin_x)
+                                )
+                                # GtkLayerShell.set_margin(
+                                #     self, GtkLayerShell.Edge.TOP, int(y)
+                                # )
+                            else:
+                                win.move(fin_x, fin_y)
                         self.target_x = x
                 return False
 
@@ -240,7 +267,7 @@ class SharedPopupWindow(Window):
                 self.animator_x.stop()
                 self.place_popup(x)
             return
-        
+
         else:
             self.place_popup(x)
 
@@ -271,6 +298,11 @@ class SharedPopupWindow(Window):
             )
             target_y = root_y + widget_alloc.y - win_alloc.height - self.POPUP_OFFSET
 
+            if IS_WAYLAND:
+                success, x, y = get_absolute_wayland_widget_position(self.pointing_widget)
+                if success:
+                    target_x, target_y = target_x + x, target_y + y
+
             return target_x, target_y
 
         except Exception as e:
@@ -278,6 +310,8 @@ class SharedPopupWindow(Window):
             return None, None
 
     def _get_target_baseline(self):
+        if not self.pointing_widget:
+            return 0
         _, _, pointing_widget_root_y = self.pointing_widget.get_window().get_origin()
         return (
             pointing_widget_root_y
@@ -285,7 +319,7 @@ class SharedPopupWindow(Window):
             - self.POPUP_OFFSET
         )
 
-    def _clamp_x(self, x: int, width: int = None) -> int:
+    def _clamp_x(self, x: int, width: int | None = None) -> int:
         screen = self.get_screen()
         if screen is None:
             return x
@@ -341,6 +375,9 @@ class SharedPopupWindow(Window):
 
     def animate_to_position(self, target_x, target_y):
         _, start_x, _ = self.get_window().get_origin()
+        if IS_WAYLAND:
+            _, x, _ = get_absolute_wayland_widget_position(self)
+            start_x += x
         self.animator_x.pause()
         self.animator_x.handler_block_by_func(self._on_animator_x_tick)
         self.animator_x.min_value = start_x
@@ -355,7 +392,7 @@ class SharedPopupWindow(Window):
         self.target_y = self._clamp_y(target_y)
         self.animator_x.play()
 
-    def place_popup(self, override_x: int = None):
+    def place_popup(self, override_x: int | None = None):
         if override_x is None:
             override_x = self.target_x
         else:
@@ -363,21 +400,30 @@ class SharedPopupWindow(Window):
 
         win = self.get_window()
         if win:
-            win.move(
-                int(self._clamp_x(override_x)),
-                int(self._get_target_baseline() - self.get_allocation().height),
-            )
+            x = int(self._clamp_x(override_x))
+            y = int(self._get_target_baseline() - self.get_allocation().height)
+            if IS_WAYLAND:
+                GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, int(x))
+                # GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, int(y))
+            else:
+                win.move(x, y)
 
     def do_size_allocate(self, alloc):
         # uses fresh allocation to move window before it extends below baseline
+        if not hasattr(self, "pointing_widget"):
+            return
+
         if self.pointing_widget and self.get_mapped():
             try:
                 win = self.get_window()
                 if win:
-                    win.move(
-                        int(self._clamp_x(self.target_x)),
-                        int(self._get_target_baseline() - alloc.height),
-                    )
+                    x = int(self._clamp_x(self.target_x))
+                    y = int(self._get_target_baseline() - alloc.height)
+                    if IS_WAYLAND:
+                        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, int(x))
+                        # GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, int(y))
+                    else:
+                        win.move(x, y)
 
             except Exception as e:
                 logger.error(f"do_size_allocate Y position failed: {e}")

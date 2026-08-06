@@ -8,7 +8,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Rsvg", "2.0")
-from gi.repository import Rsvg, Gtk
+from gi.repository import Rsvg, Gtk # type: ignore
 
 
 class PatchedX11Window(X11Window):

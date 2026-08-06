@@ -4,7 +4,12 @@ from fabric.widgets.box import Box
 from fabric.widgets.stack import Stack
 from fabric.widgets.eventbox import EventBox
 
-from widgets.overrides import PatchedX11Window as Window
+from config.info import IS_WAYLAND
+
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
 
 from modules.special import ActionButton
 from modules.special import DateTime
@@ -34,19 +39,29 @@ class DockBar(Window):
     WIN_ROLE = "zenith-dock"
 
     def __init__(self, pill, **kwargs):
-        super().__init__(
-            name="dock-bar",
-            layer="bottom",
-            geometry=config.bar["POSITION"],
-            type_hint="dock",
-            margin="0px",
-            visible=True,
-            all_visible=True,
-            h_expand=True,
-            v_expand=True,
-            **kwargs,
-        )
-        self.set_title(self.WIN_ROLE)
+        if IS_WAYLAND:
+            super().__init__(
+                layer="top",
+                title=self.WIN_ROLE,
+                anchor="bottom left right",
+                exclusivity="auto",
+                pass_through=False,
+                visible=True,
+                all_visible=True,
+            )
+        else:
+            super().__init__(
+                name="dock-bar",
+                layer="bottom",
+                title=self.WIN_ROLE,
+                geometry=config.bar["POSITION"],
+                type_hint="dock",
+                visible=True,
+                all_visible=True,
+                h_expand=True,
+                v_expand=True,
+                **kwargs,
+            )
 
         self._pill_ref = pill
 
@@ -64,6 +79,7 @@ class DockBar(Window):
         self.build_bar()
 
         self.add_keybinding("Escape", lambda *_: self.close())
+        self.show_all()
 
     def init_modules(self):
         self.controls = ControlsManager()

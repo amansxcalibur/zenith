@@ -2,7 +2,14 @@ import cairo
 
 from fabric.widgets.box import Box
 from fabric.widgets.stack import Stack
-from fabric.widgets.x11 import X11Window as Window
+
+from config.info import IS_WAYLAND
+
+if IS_WAYLAND:
+    from fabric.widgets.wayland import WaylandWindow as Window
+else:
+    from widgets.overrides import PatchedX11Window as Window
+
 from fabric.core.service import Signal, Service
 
 from services.animator import Animator
@@ -13,7 +20,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("GObject", "2.0")
-from gi.repository import Gtk, Gdk, GLib  # noqa: E402
+from gi.repository import Gtk, GtkLayerShell, Gdk, GLib  # type: ignore
 
 
 class PopSlot(Box):
@@ -88,21 +95,32 @@ class FlyingOverlay(Window, Service):
         return cls._shared
 
     def __init__(self):
-        super().__init__(
-            geometry="top",
-            type="top-level",
-            type_hint="utility",
-            visible=False,
-            all_visible=False,
-        )
+        if IS_WAYLAND:
+            super().__init__(
+                layer="overlay",
+                keyboard_mode="on-demand",
+                anchor="top bottom left right",
+                visible=False,
+                all_visible=False,
+            )
+            GtkLayerShell.set_exclusive_zone(self, -1)
+        else:
+            super().__init__(
+                geometry="top",
+                type="top-level",
+                type_hint="utility",
+                visible=False,
+                all_visible=False,
+            )
 
         # recomputed every pop
         display = Gdk.Display.get_default()
         monitor = display.get_primary_monitor()
-        geometry = monitor.get_geometry()
-        self.screen_width = geometry.width
-        self.screen_height = geometry.height
-        self.set_default_size(self.screen_width, self.screen_height)
+        if not IS_WAYLAND:
+            geometry = monitor.get_geometry()
+            self.screen_width = geometry.width
+            self.screen_height = geometry.height
+            self.set_default_size(self.screen_width, self.screen_height)
 
         self.content_frame = Box()
         self.content_stack = Stack(transition_duration=180, transition_type="crossfade")
@@ -168,8 +186,13 @@ class FlyingOverlay(Window, Service):
 
         gdk_window = slot.get_window()
         success, origin_x, origin_y = gdk_window.get_origin()
+        if IS_WAYLAND:
+            success, x, y = self._get_absolute_position(slot)
+            origin_x, origin_y = origin_x + x, origin_y + y
+
         if not success:
             return
+
         alloc = slot.get_allocation()
         start_x, start_y = origin_x + alloc.x, origin_y + alloc.y
         start_w, start_h = alloc.width, alloc.height
@@ -186,6 +209,48 @@ class FlyingOverlay(Window, Service):
         GLib.idle_add(
             self._begin_flight, start_x, start_y, start_w, start_h, target_size
         )
+
+    def _get_absolute_position(self, widget):
+        """Compute widget's current absolute (x, y) screen position."""
+        toplevel = widget.get_toplevel()
+        win = toplevel.get_window()
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitor_at_window(win) or display.get_monitor(0)
+        geo = monitor.get_geometry()
+
+        # window (toplevel) position via anchors/margins, as before
+        win_alloc = toplevel.get_allocation()
+        win_w, win_h = win_alloc.width, win_alloc.height
+
+        anchored_top = GtkLayerShell.get_anchor(toplevel, GtkLayerShell.Edge.TOP)
+        anchored_bottom = GtkLayerShell.get_anchor(toplevel, GtkLayerShell.Edge.BOTTOM)
+        anchored_left = GtkLayerShell.get_anchor(toplevel, GtkLayerShell.Edge.LEFT)
+        anchored_right = GtkLayerShell.get_anchor(toplevel, GtkLayerShell.Edge.RIGHT)
+
+        margin_top = GtkLayerShell.get_margin(toplevel, GtkLayerShell.Edge.TOP)
+        margin_bottom = GtkLayerShell.get_margin(toplevel, GtkLayerShell.Edge.BOTTOM)
+        margin_left = GtkLayerShell.get_margin(toplevel, GtkLayerShell.Edge.LEFT)
+        margin_right = GtkLayerShell.get_margin(toplevel, GtkLayerShell.Edge.RIGHT)
+
+        if anchored_left and not anchored_right:
+            win_x = geo.x + margin_left
+        elif anchored_right and not anchored_left:
+            win_x = geo.x + geo.width - margin_right - win_w
+        elif anchored_left and anchored_right:
+            win_x = geo.x + margin_left
+        else:
+            win_x = geo.x + (geo.width - win_w) // 2
+
+        if anchored_top and not anchored_bottom:
+            win_y = geo.y + margin_top
+        elif anchored_bottom and not anchored_top:
+            win_y = geo.y + geo.height - margin_bottom - win_h
+        elif anchored_top and anchored_bottom:
+            win_y = geo.y + margin_top
+        else:
+            win_y = geo.y + (geo.height - win_h) // 2
+
+        return True, win_x, win_y
 
     def _begin_flight(self, start_x, start_y, start_w, start_h, target_size) -> bool:
         self.source_widget = self.source_slot.release()
@@ -267,7 +332,9 @@ class FlyingOverlay(Window, Service):
             self.set_pass_through(True)
             self.flying_container.remove_style_class("darken")
 
-            should_seek = not self.source_slot.get_mapped() # fails when slot is in mid-transition
+            should_seek = (
+                not self.source_slot.get_mapped()
+            )  # fails when slot is in mid-transition
 
             if should_seek:
                 self.add_style_class("fade-out")

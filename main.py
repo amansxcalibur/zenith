@@ -1,7 +1,7 @@
 import os
 import shutil
 import setproctitle
-from gi.repository import GLib
+from gi.repository import GLib # type: ignore
 
 from fabric import Application
 from fabric.widgets.x11 import X11Window as Window
@@ -17,16 +17,21 @@ from modules.core.bottom.pill import Pill
 from modules.wallpaper import WallpaperService
 from modules.core.bottom.dock.bar import DockBar
 from modules.transient_window import TransientWindow
-from modules.core.bottom.shell_window_manager import ShellWindowManager
-from modules.core.top.shell_window_manager import ShellTopWindowManager
 
 from config.config import config
-from config.info import SHELL_NAME, HOME_DIR, ROOT_DIR
+from config.info import SHELL_NAME, HOME_DIR, ROOT_DIR, IS_WAYLAND
 from config.i3.utils import (
     generate_i3_general_config,
     generate_i3_keybinds_config,
     generate_i3_border_theme_config,
 )
+
+if IS_WAYLAND:
+    from modules.core.bottom.shell_wm_wayland import ShellWindowManager
+    from modules.core.top.shell_wm_wayland import ShellTopWindowManager
+else:
+    from modules.core.bottom.shell_window_manager import ShellWindowManager
+    from modules.core.top.shell_window_manager import ShellTopWindowManager
 
 
 def normalize_path():
