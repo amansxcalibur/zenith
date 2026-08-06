@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 from PIL import Image
 from pathlib import Path
 from loguru import logger
@@ -19,14 +20,14 @@ from widgets.material_label import MaterialFontLabel, MaterialIconLabel
 
 import icons
 from config.config import config
-from config.info import CONFIG_DIR, CACHE_DIR
+from config.info import CONFIG_DIR, CACHE_DIR, IS_WAYLAND
 from utils.helpers import hash_file
 from utils.lock import generate_lockscreen_image
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gtk, GLib, Gio, Gdk # type: ignore
+from gi.repository import GdkPixbuf, Gtk, GLib, Gio, Gdk  # type: ignore
 
 
 # paths
@@ -167,14 +168,30 @@ class WallpaperSelector(Box):
         self._visible_children = []
         self._wallpaper_bindings_config = config.bindings.modules.wallpaper
         self._cached_binds = {
-            "scheme_prev": Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.scheme_prev"]),
-            "scheme_next": Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.scheme_next"]),
-            "scheme_open": Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.scheme_open"]),
-            "move_up":     Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.move_up"]),
-            "move_down":   Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.move_down"]),
-            "move_left":   Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.move_left"]),
-            "move_right":  Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.move_right"]),
-            "activate":    Gtk.accelerator_parse(self._wallpaper_bindings_config["wallpaper.activate"]),
+            "scheme_prev": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.scheme_prev"]
+            ),
+            "scheme_next": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.scheme_next"]
+            ),
+            "scheme_open": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.scheme_open"]
+            ),
+            "move_up": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.move_up"]
+            ),
+            "move_down": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.move_down"]
+            ),
+            "move_left": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.move_left"]
+            ),
+            "move_right": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.move_right"]
+            ),
+            "activate": Gtk.accelerator_parse(
+                self._wallpaper_bindings_config["wallpaper.activate"]
+            ),
         }
         self.executor = ThreadPoolExecutor(max_workers=5)
 
@@ -251,7 +268,9 @@ class WallpaperSelector(Box):
                         name="close-label", icon_text=icons.close.symbol()
                     ),
                     tooltip_text="Exit",
-                    on_clicked=lambda *_: self._pill.close(),
+                    on_clicked=lambda *_: self._pill.stack.set_visible_child(
+                        self._pill.launcher
+                    ),
                 ),
             ],
         )
@@ -275,6 +294,7 @@ class WallpaperSelector(Box):
         self.show_all()
 
         def grab_initial_focus(widget):
+            widget.set_text("")
             widget.grab_focus()
             return False
 
@@ -457,17 +477,35 @@ class WallpaperSelector(Box):
         full_path = os.path.join(config.WALLPAPERS_DIR, file_name)
 
         selected_scheme = self.scheme_dropdown.get_active_id()
-        feh_bin = shutil.which("feh")
 
-        if not feh_bin:
-            logger.error("'feh' binary not found.")
-            exec_shell_command_async(
-                "notify-send 'Zenith Error' '\"feh\" not found. Wallpaper not applied.'"
+        if IS_WAYLAND:
+            swaybg_bin = shutil.which("swaybg")
+            if not swaybg_bin:
+                logger.error("'swaybg' binary not found.")
+                exec_shell_command_async(
+                    "notify-send 'Zenith Error' '\"swaybg\" not found. Wallpaper not applied.'"
+                )
+                return
+
+            # apply wallpaper
+            subprocess.run(["pkill", "-x", "swaybg"], check=False)
+            subprocess.Popen(
+                [swaybg_bin, "-i", full_path, "-m", "fill"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
             )
-            return
+        else:
+            feh_bin = shutil.which("feh")
+            if not feh_bin:
+                logger.error("'feh' binary not found.")
+                exec_shell_command_async(
+                    "notify-send 'Zenith Error' '\"feh\" not found. Wallpaper not applied.'"
+                )
+                return
 
-        # apply wallpaper
-        exec_shell_command_async(f"{feh_bin} --zoom fill --bg-fill '{full_path}'")
+            # apply wallpaper
+            exec_shell_command_async(f"{feh_bin} --zoom fill --bg-fill '{full_path}'")
 
         def save_history():
             WP_HISTORY.parent.mkdir(parents=True, exist_ok=True)
@@ -521,9 +559,9 @@ class WallpaperSelector(Box):
     def on_search_entry_key_press(self, widget, event):
         # ignores CapsLock, NumLock, etc.
         core_modifiers = event.state & (
-            Gdk.ModifierType.SHIFT_MASK | 
-            Gdk.ModifierType.CONTROL_MASK | 
-            Gdk.ModifierType.MOD1_MASK
+            Gdk.ModifierType.SHIFT_MASK
+            | Gdk.ModifierType.CONTROL_MASK
+            | Gdk.ModifierType.MOD1_MASK
         )
         key_s_prev, mask_s_prev = self._cached_binds["scheme_prev"]
         key_s_next, mask_s_next = self._cached_binds["scheme_next"]
@@ -560,10 +598,12 @@ class WallpaperSelector(Box):
             return True
 
         # Arrow key navigation in FlowBox
-        if (event.keyval == key_up and core_modifiers == mask_up) or \
-        (event.keyval == key_down and core_modifiers == mask_down) or \
-        (event.keyval == key_left and core_modifiers == mask_left) or \
-        (event.keyval == key_right and core_modifiers == mask_right):
+        if (
+            (event.keyval == key_up and core_modifiers == mask_up)
+            or (event.keyval == key_down and core_modifiers == mask_down)
+            or (event.keyval == key_left and core_modifiers == mask_left)
+            or (event.keyval == key_right and core_modifiers == mask_right)
+        ):
             self.move_selection_2d(event.keyval)
             return True
 
