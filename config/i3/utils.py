@@ -2,10 +2,9 @@ import os
 import colorsys
 from pathlib import Path
 from loguru import logger
-from typing import Optional
 
 from config.config import config, _ConfigNode
-from config.info import ROOT_DIR, SHELL_NAME
+from config.info import ROOT_DIR, SHELL_NAME, IS_WAYLAND
 from config.bindings import (
     KeyBinding,
     apply_keybinding_overrides,
@@ -14,6 +13,7 @@ from config.bindings import (
 from utils.colors import get_css_variable, hex_to_rgb01
 
 from fabric.i3.widgets import get_i3_connection
+from fabric.utils import exec_shell_command_async
 # from fabric.i3.service import I3MessageType, I3Error
 
 CONFIG_DIR = Path.home() / ".config/i3"
@@ -51,11 +51,11 @@ def ensure_vibrancy(hex_color: str, min_brightness=0.8, min_saturation=0.5) -> s
 
     # HSV -> RGB -> Hex
     r, g, b = colorsys.hsv_to_rgb(h, new_s, new_v)
-    return "#{:02x}{:02x}{:02x}".format(int(r * 255), int(g * 255), int(b * 255))
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
 def generate_i3_border_theme_config(
-    hex_color: Optional[str] = None, reload: bool = False
+    hex_color: str | None = None, reload: bool = False
 ):
     ensure_i3_paths()
     STYLES_DIR = ROOT_DIR / "styles"
@@ -127,7 +127,7 @@ def ensure_i3_config_includes_glob_dir(config_path: Path, include_dir: Path):
         # start on a new line
         suffix = "\n" if not content.endswith("\n") else ""
         with open(config_path, "a") as f:
-            f.write(f"{suffix}# globbing - all .conf in /conf.d\n{include_line}\n")
+            f.write(f"{suffix}# globbing all .conf in /conf.d\n{include_line}\n")
     else:
         logger.debug("i3 config already contains include line")
 
@@ -205,6 +205,8 @@ def generate_i3_gaps_and_borders_config():
         lines.append("# gaps")
         for prop, val in gaps_config.props.get_all().items():
             lines.append(f"gaps {prop} {val}px")
+            if IS_WAYLAND:
+                exec_shell_command_async(f'swaymsg gaps {prop} all set {val}')
         lines.append("")
 
     border_config = config.i3.borders
