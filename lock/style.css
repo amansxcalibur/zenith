@@ -2,4 +2,4 @@
   all: unset;
 }
 
-@import url("styles/colors.css");
+@import url("../styles/colors.css");
