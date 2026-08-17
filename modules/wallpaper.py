@@ -22,7 +22,11 @@ import icons
 from config.config import config
 from config.info import CONFIG_DIR, CACHE_DIR, IS_WAYLAND
 from utils.helpers import hash_file
-from utils.lock import generate_lockscreen_image
+from utils.lock import (
+    generate_lockscreen_image,
+    LOCKSCREEN_IMG_FILE,
+    LOCKSCREEN_BLURRED_IMG_FILE,
+)
 
 import gi
 
@@ -32,7 +36,7 @@ from gi.repository import GdkPixbuf, Gtk, GLib, Gio, Gdk  # type: ignore
 
 # paths
 WP_CACHE = Path(CACHE_DIR) / "wallpapers"
-WP_THUMBS = WP_CACHE / "thumbs"
+WP_THUMBS_DIR = WP_CACHE / "thumbs"
 WP_PREVIEW_DIR = WP_CACHE / "previews"
 WP_HISTORY = Path(CACHE_DIR) / "current_wallpaper.txt"
 WP_PREVIEW_FILE = WP_PREVIEW_DIR / "low_rez.png"
@@ -40,17 +44,16 @@ WP_PREVIEW_TEMP = WP_PREVIEW_DIR / "low_rez.tmp.png"
 
 
 def ensure_wallpaper_dirs():
-    WP_THUMBS.mkdir(parents=True, exist_ok=True)
+    WP_THUMBS_DIR.mkdir(parents=True, exist_ok=True)
     WP_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_thumbnail_cache_path(file_path: str) -> Path:
     file_hash = hash_file(Path(file_path))
-    return WP_THUMBS / f"{file_hash}.png"
+    return WP_THUMBS_DIR / f"{file_hash}.png"
 
 
 def generate_wallpaper_preview(image_path: str | Path) -> Path | None:
-    """Generate low-res preview for wallpaper. Less memory when loading onto widgets"""
     try:
         WP_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -126,12 +129,34 @@ class WallpaperService(Service):
             logger.error(f"Failed to initialize wallpaper: {e}")
 
     def _apply_wallpaper(self, full_path: str):
-        feh_bin = shutil.which("feh")
-        if not feh_bin:
-            logger.error("'feh' binary not found")
-            return
+        if IS_WAYLAND:
+            swaybg_bin = shutil.which("swaybg")
+            if not swaybg_bin:
+                logger.error("'swaybg' binary not found.")
+                exec_shell_command_async(
+                    "notify-send -a 'Zenith Wallpaper' 'Zenith Error' '\"swaybg\" not found. Wallpaper not applied.'"
+                )
+                return
 
-        exec_shell_command_async(f"{feh_bin} --zoom fill --bg-fill '{full_path}'")
+            # apply wallpaper
+            subprocess.run(["pkill", "-x", "swaybg"], check=False)
+            subprocess.Popen(
+                [swaybg_bin, "-i", full_path, "-m", "fill"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        else:
+            feh_bin = shutil.which("feh")
+            if not feh_bin:
+                logger.error("'feh' binary not found.")
+                exec_shell_command_async(
+                    "notify-send -a 'Zenith Wallpaper' 'Zenith Error' '\"feh\" not found. Wallpaper not applied.'"
+                )
+                return
+
+            # apply wallpaper
+            exec_shell_command_async(f"{feh_bin} --zoom fill --bg-fill '{full_path}'")
 
     def set_wallpaper_path(self, full_path: str, preview_path: str | None):
         self._wallpaper_path = full_path
@@ -144,6 +169,15 @@ class WallpaperService(Service):
 
     def get_preview_path(self) -> str | None:
         return self._preview_path
+
+    def get_lockscreen_image_path(self, blurred: bool = True) -> str | None:
+        if blurred:
+            return (
+                LOCKSCREEN_BLURRED_IMG_FILE
+                if LOCKSCREEN_BLURRED_IMG_FILE.exists()
+                else None
+            )
+        return LOCKSCREEN_IMG_FILE if LOCKSCREEN_IMG_FILE.exists() else None
 
 
 class WallpaperSelector(Box):
@@ -478,34 +512,7 @@ class WallpaperSelector(Box):
 
         selected_scheme = self.scheme_dropdown.get_active_id()
 
-        if IS_WAYLAND:
-            swaybg_bin = shutil.which("swaybg")
-            if not swaybg_bin:
-                logger.error("'swaybg' binary not found.")
-                exec_shell_command_async(
-                    "notify-send 'Zenith Error' '\"swaybg\" not found. Wallpaper not applied.'"
-                )
-                return
-
-            # apply wallpaper
-            subprocess.run(["pkill", "-x", "swaybg"], check=False)
-            subprocess.Popen(
-                [swaybg_bin, "-i", full_path, "-m", "fill"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
-        else:
-            feh_bin = shutil.which("feh")
-            if not feh_bin:
-                logger.error("'feh' binary not found.")
-                exec_shell_command_async(
-                    "notify-send 'Zenith Error' '\"feh\" not found. Wallpaper not applied.'"
-                )
-                return
-
-            # apply wallpaper
-            exec_shell_command_async(f"{feh_bin} --zoom fill --bg-fill '{full_path}'")
+        self.wallpaper_service._apply_wallpaper(full_path)
 
         def save_history():
             WP_HISTORY.parent.mkdir(parents=True, exist_ok=True)
@@ -533,7 +540,6 @@ class WallpaperSelector(Box):
         self.update_badge_visibility(target_file_name=file_name)
 
     def update_badge_visibility(self, target_file_name: str | None = None):
-        # 1. Fallback to service state ONLY if no explicit target is provided
         if target_file_name is None:
             try:
                 current_path = self.wallpaper_service.get_wallpaper_path() or ""

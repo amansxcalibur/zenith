@@ -2,7 +2,7 @@ import sys
 import subprocess
 from pathlib import Path
 from loguru import logger
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from .helpers import get_screen_resolution_i3
 
@@ -13,6 +13,7 @@ CACHE_DIR = Path(cache_dir_str)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 LOCKSCREEN_RESOURCE_DIR = Path(CACHE_DIR) / "lockscreen"
 LOCKSCREEN_IMG_FILE = LOCKSCREEN_RESOURCE_DIR / "lockscreen.png"
+LOCKSCREEN_BLURRED_IMG_FILE = LOCKSCREEN_RESOURCE_DIR / "lockscreen_blurred.png"
 
 
 def lock_screen():
@@ -72,6 +73,7 @@ def generate_lockscreen_image(image_path: str | Path) -> Path | None:
         LOCKSCREEN_RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
 
         tmp = LOCKSCREEN_IMG_FILE.with_suffix(".tmp")
+        tmp_blurred = LOCKSCREEN_BLURRED_IMG_FILE.with_suffix(".tmp")
         width, height = get_screen_resolution_i3()
 
         with Image.open(image_path) as img:
@@ -90,10 +92,21 @@ def generate_lockscreen_image(image_path: str | Path) -> Path | None:
 
             img = img.crop((left, top, right, bottom))
 
+            # blurred
+            scale_factor = 0.5
+            small_size = (int(width * scale_factor), int(height * scale_factor))
+            blurred_img = img.resize(small_size, Image.Resampling.BILINEAR)
+            blurred_img = blurred_img.filter(
+                ImageFilter.GaussianBlur(radius=10 * scale_factor)
+            )
+            blurred_img = blurred_img.resize((width, height), Image.Resampling.BILINEAR)
+
             LOCKSCREEN_IMG_FILE.parent.mkdir(parents=True, exist_ok=True)
             img.save(tmp, "PNG")
+            blurred_img.save(tmp_blurred, "PNG")
 
         tmp.replace(LOCKSCREEN_IMG_FILE)
+        tmp_blurred.replace(LOCKSCREEN_BLURRED_IMG_FILE)
 
         # returning in case we do hashing and caching later
         return LOCKSCREEN_IMG_FILE
