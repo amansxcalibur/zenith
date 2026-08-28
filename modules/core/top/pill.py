@@ -39,9 +39,9 @@ class TopPill(Window, Service):
     def __init__(self, **kwargs):
         if IS_WAYLAND:
             super().__init__(
-                layer="top",
+                layer="overlay",
                 keyboard_mode="on-demand",
-                anchor="top",
+                anchor=f"{config.top_pill.POSITION.y} {config.top_pill.POSITION.x}",
                 exclusivity="none",
                 margin=(0, 0, 0, 0),
                 visible=True,

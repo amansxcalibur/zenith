@@ -35,7 +35,7 @@ class TopBar(Window):
             super().__init__(
                 layer="top",
                 title='zenith-top-bar',
-                anchor="top",
+                anchor=f"{config.top_pill.POSITION.y} {config.top_pill.POSITION.x}",
                 exclusivity="none",
                 pass_through=False,
                 visible=True,

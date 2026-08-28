@@ -298,7 +298,7 @@ class Player(Box):
         def _set_initial_bg(
             service: WallpaperService, full_path: str, preview_path: str
         ):
-            self.set_style(f"background-image:url('{preview_path}')")
+            self.set_style(f"background-image: url('{preview_path}')")
             return False
 
         self._wallpaper_signal_id = self._wallpaper_service.connect(

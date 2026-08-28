@@ -46,7 +46,7 @@ class Pill(Window, Service):
     def __init__(self, **kwargs):
         if IS_WAYLAND:
             super().__init__(
-                name="pill",
+                # name="pill",
                 layer="top",
                 keyboard_mode="on-demand",
                 anchor="bottom",

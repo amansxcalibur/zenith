@@ -16,9 +16,10 @@ from fabric.i3.widgets import get_i3_connection
 from fabric.utils import exec_shell_command_async
 # from fabric.i3.service import I3MessageType, I3Error
 
-CONFIG_DIR = Path.home() / ".config/i3"
+WM = "sway" if IS_WAYLAND else "i3"
+CONFIG_DIR = Path.home() / f".config/{WM}"
 CONFIG_PATH = CONFIG_DIR / "config"
-CONFIG_GLOB_PATH = Path.home() / ".config/i3/conf.d"
+CONFIG_GLOB_PATH = CONFIG_DIR / "conf.d"
 BORDERS_CONF_PATH = CONFIG_GLOB_PATH / "borders.conf"
 KEYBINDS_CONF_PATH = CONFIG_GLOB_PATH / "keybinds.conf"
 GENERAL_CONF_PATH = CONFIG_GLOB_PATH / "general.conf"
@@ -54,9 +55,7 @@ def ensure_vibrancy(hex_color: str, min_brightness=0.8, min_saturation=0.5) -> s
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
-def generate_i3_border_theme_config(
-    hex_color: str | None = None, reload: bool = False
-):
+def generate_i3_border_theme_config(hex_color: str | None = None, reload: bool = False):
     ensure_i3_paths()
     STYLES_DIR = ROOT_DIR / "styles"
     COLORS_CSS_PATH = STYLES_DIR / "colors.css"
@@ -206,7 +205,7 @@ def generate_i3_gaps_and_borders_config():
         for prop, val in gaps_config.props.get_all().items():
             lines.append(f"gaps {prop} {val}px")
             if IS_WAYLAND:
-                exec_shell_command_async(f'swaymsg gaps {prop} all set {val}')
+                exec_shell_command_async(f"swaymsg gaps {prop} all set {val}")
         lines.append("")
 
     border_config = config.i3.borders
@@ -237,7 +236,7 @@ def generate_i3_general_config(reload: bool = False):
 
     try:
         ensure_i3_config_includes_glob_dir(main_config_path, CONFIG_GLOB_PATH)
-        
+
         logger.debug("Setting i3 borders and gaps")
         lines.append(generate_i3_gaps_and_borders_config())
 
