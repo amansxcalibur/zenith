@@ -57,6 +57,10 @@ from services.animator import Animator
 from utils.helpers import format_accel_to_keybind
 import icons
 from config.config import config
+from config.info import IS_WAYLAND
+
+if IS_WAYLAND:
+    from widgets.wayland_scrolled_window import AutoSizingScrolledWindow
 
 from .notification_group import NotificationGroup
 from .common import NotificationConfig, NotificationNotifier
@@ -64,7 +68,7 @@ from .common import NotificationConfig, NotificationNotifier
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gdk, GLib # type: ignore
+from gi.repository import GdkPixbuf, Gdk, GLib  # type: ignore
 
 
 class NotificationTile(TileSimple):
@@ -181,7 +185,12 @@ class ActiveNotificationWidget(EventBox):
                         name="img-expander",
                         style_classes="expand",
                         v_align="start",
-                        children=ExpressiveShape(shape=self._notification.shape),
+                        children=Box(
+                            name="notif-expressive-shape-container",
+                            h_expand=True,
+                            v_expand=True,
+                            children=ExpressiveShape(shape=self._notification.shape),
+                        ),
                     )
                 )
         except Exception as e:
@@ -628,16 +637,31 @@ class NotificationManager:
             spacing=NotificationConfig.SPACING,
         )
         self._groups: dict[str, NotificationGroup] = {}  # keyed by app_name
-        self.scrolled_window = ScrolledWindow(
-            name="notification-scrolled-window",
-            size=2,
-            h_scrollbar_policy="external",
-            v_scrollbar_policy="external",
-            max_content_size=(
-                NotificationConfig.WINDOW_MAX_WIDTH,
-                NotificationConfig.WINDOW_MAX_HEIGHT,
-            ),
-            child=self.viewport,
+
+        self.scrolled_window = (
+            AutoSizingScrolledWindow(
+                name="notification-scrolled-window",
+                size=2,
+                h_scrollbar_policy="external",
+                v_scrollbar_policy="external",
+                max_content_size=(
+                    NotificationConfig.WINDOW_MAX_WIDTH,
+                    NotificationConfig.WINDOW_MAX_HEIGHT,
+                ),
+                child=self.viewport,
+            )
+            if IS_WAYLAND
+            else ScrolledWindow(
+                name="notification-scrolled-window",
+                size=2,
+                h_scrollbar_policy="external",
+                v_scrollbar_policy="external",
+                max_content_size=(
+                    NotificationConfig.WINDOW_MAX_WIDTH,
+                    NotificationConfig.WINDOW_MAX_HEIGHT,
+                ),
+                child=self.viewport,
+            )
         )
 
         self.notification_carousal = NotificationGroupCarousal(

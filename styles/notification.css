@@ -1,9 +1,16 @@
+/*
+  Some CSS can cause issues with height measurement in the 
+  notification module (NotificationGroup, NotificationWidget).
+  They are marked by "HEIGHT MEASUREMENT FLAG".
+*/
+
 #notif-group-container {
   border-radius: 25px;
   background-color: var(--shadow);
 }
 #notif-group-children-box.contract > :last-child > :last-child {
   transition: all 0.15s linear;
+  /* HEIGHT MEASUREMENT FLAG */
   padding-bottom: 5px;
 }
 
@@ -23,6 +30,7 @@
 
 #notif-group-container #notification-widget.contract {
   border-radius: 0px;
+  /* HEIGHT MEASUREMENT FLAG */
   padding: 5px 10px 5px 10px;
 }
 #notif-group-container #notification-widget.expand {
@@ -226,6 +234,7 @@
 
 #notif-collapsed-page {
   padding: 0;
+  min-height: 24px;
 }
 
 .notif-summary {
@@ -245,23 +254,27 @@
 }
 
 #img-expander {
+  /* DON'T put padding here. It messes up notif height measurement */
+  /* HEIGHT MEASUREMENT FLAG */
   transition: all 0.15s linear;
   background-color: var(--surface-bright);
   background-size: cover;
   background-position: center;
   border-radius: 12px;
+}
+#notif-expressive-shape-container {
   padding: 2px;
 }
 #img-expander.contract {
   min-width: 24px;
   min-height: 24px;
-  margin-left: 22px;
+  margin-left: 26px;
 }
 #img-expander.expand {
-  min-width: 46px;
-  min-height: 46px;
+  min-width: 50px;
+  min-height: 50px;
 }
-#img-expander > * {
+#img-expander > * > * {
   background-color: var(--surface-semi-bright);
 }
 #img-expander.critical {
@@ -269,11 +282,11 @@
 }
 
 /* carousal */
-#notif-carousal{
+#notif-carousal {
   margin: 8px 0 0 0;
 }
 
-#notif-carousal-box{
+#notif-carousal-box {
   border-radius: 25px;
   background-color: var(--shadow);
   min-height: 28px;
@@ -281,11 +294,11 @@
   padding: 10px;
 }
 
-#notif-carousal-spacer{
+#notif-carousal-spacer {
   /* background-color: red; */
   min-width: 364px;
 }
 
-#notif-carousal-scroller{
-  /* background-color: green; */
-}
+/* #notif-carousal-scroller {
+  background-color: green;
+} */

@@ -23,6 +23,7 @@ from widgets.rounded_image import RoundedImage
 from widgets.material_label import MaterialIconLabel
 from widgets.clipping_box import AnimatedClippingBox
 from widgets.shapes.expressive.morphing_shapes import ExpressiveShape
+from services.animator import CubicBezierCurves
 from utils.helpers import toggle_class
 import icons
 
@@ -109,19 +110,29 @@ class NotificationWidget(Box):
     @property
     def collapsed_height(self) -> int:
         return (
-            38
+            34
             if self.collapsed_page.get_orientation() == Gtk.Orientation.HORIZONTAL
             else 54
         )
 
     @property
     def expanded_height(self) -> int:
-        h = (
-            self.get_preferred_height()[1]
+        page_diff = (
+            self.expanded_page.get_preferred_height()[1]
             - self.collapsed_page.get_preferred_height()[1]
-            + self._expanded_short.get_preferred_height()[1]
         )
-        return h
+
+        actions_height = 0
+        if self._notification.actions and (
+            self._stack.get_visible_child_name() == self.PAGE_EXPANDED
+        ):
+            actions_height = self._actions.get_preferred_height()[1] + 10  # margin-top
+
+        # css related adding
+        css_pads = 10  # from #notification-widget.contract
+
+        h = self.get_preferred_height()[1] + max(0, page_diff) + actions_height
+        return h + css_pads
 
     def __init__(self, notification: Notification, **kwargs):
         super().__init__(name="notification-widget", **kwargs)
@@ -131,13 +142,13 @@ class NotificationWidget(Box):
         self._scaled_pixbuf = None
         self.timestamp = notification.time
         self.urgency = notification.urgency
-        self.toggler = False
+        self._expanded_page_toggle_state = False
 
         self._image_path = self._resolve_image_path(notification)
 
         self.image_box = self._build_image_box()
         self.collapsed_page = self._build_collapsed_page(notification)
-        expanded_page = self._build_expanded_page(notification)
+        self.expanded_page = self._build_expanded_page(notification)
         self._actions = Box(
             spacing=4,
             orientation="h",
@@ -154,7 +165,7 @@ class NotificationWidget(Box):
             ],
         )
         self._actions_revealer = Revealer(
-            transition_duration=150,
+            transition_duration=250,
             transition_type="slide-up",
             child=self._actions,
             child_revealed=False,
@@ -182,11 +193,11 @@ class NotificationWidget(Box):
         self._stack.set_vhomogeneous(False)
         self._stack.set_hhomogeneous(True)
         self._stack.add_named(self.collapsed_page, self.PAGE_COLLAPSED)
-        self._stack.add_named(expanded_page, self.PAGE_EXPANDED)
+        self._stack.add_named(self.expanded_page, self.PAGE_EXPANDED)
         self._stack.set_visible_child_name(self.PAGE_COLLAPSED)
 
         self.collapsed_page.show_all()
-        expanded_page.show_all()
+        self.expanded_page.show_all()
 
         self._closed_connection = notification.connect(
             "closed", self._on_notification_closed
@@ -214,11 +225,25 @@ class NotificationWidget(Box):
             self.PAGE_EXPANDED if expanded else self.PAGE_COLLAPSED
         )
 
+        if self._expanded_page_toggle_state and not expanded:
+            # not preserving state cuz it introduces unnecessary
+            # complexity to expanded height measurement
+            self._on_toggle_expanded_page(self.revealer_btn, state=False)
+
     def _build_image_box(self) -> Box:
         box = Box(name="img-expander", v_align="start", style_classes="contract")
         if self._image_path is None:
             if hasattr(self._notification, "shape"):
-                box.add(ExpressiveShape(shape=self._notification.shape))
+                # wrapping in `Box` because adding padding to
+                # img-expander messes up height measurement
+                box.add(
+                    Box(
+                        name="notif-expressive-shape-container",
+                        h_expand=True,
+                        v_expand=True,
+                        children=ExpressiveShape(shape=self._notification.shape),
+                    )
+                )
         else:
             box.set_style(f'background-image: url("{self._image_path}")')
         return box
@@ -381,8 +406,8 @@ class NotificationWidget(Box):
         )
 
     def _on_toggle_expanded_page(self, btn, state: bool | None = None):
-        expanded = not self.toggler if state is None else state
-        self.toggler = expanded
+        expanded = not self._expanded_page_toggle_state if state is None else state
+        self._expanded_page_toggle_state = expanded
 
         self.revealer_btn_label.set_angle(90 if expanded else -90)
 
@@ -479,12 +504,14 @@ class NotificationGroup(AnimatedClippingBox):
             name="notif-group-container",
             orientation="v",
             max_height=AnimatedClippingBox._COLLAPSED_HEIGHT_DEFAULT,
-            duration=0.15,
+            duration=0.25,
+            contracting_bezier_curve=CubicBezierCurves.EXPRESSIVE,
+            expanding_bezier_curve=CubicBezierCurves.EMPHASIS,
+            max_overshoot_value=30,
             **kwargs,
         )
         self.app_name = app_name
         self._on_empty = on_empty
-        self._widgets: list[NotificationWidget] = []
         self._widgets: list[NotificationWidget] = []
         self._notif_ids: set[int] = set()
         self._max_urgency = 0
@@ -505,7 +532,7 @@ class NotificationGroup(AnimatedClippingBox):
 
         self._toggle_icon = MaterialIconLabel(
             icon_text=icons.arrow_forward.symbol(),
-            angle=90,  # starts pointing up = collapsed
+            angle=-90,  # pointing down = collapsed
         )
         self._toggle_btn = Button(
             name="notif-group-toggle-btn",
@@ -713,9 +740,15 @@ class NotificationGroup(AnimatedClippingBox):
 
     def _compute_expanded_height(self) -> int:
         _, h = self._header.get_preferred_height()
-        for widget in self._widgets:
-            h += widget.expanded_height
-        return h
+        widgets_h = sum(w.expanded_height for w in self._widgets)
+
+        widget_count = len(self._widgets)
+        inner_gaps = max(0, widget_count - 1) * self._children_box.get_spacing()
+        outer_gap = self.get_spacing() if widget_count > 0 else 0
+
+        # from #notif-group-children-box.contract > :last-child > :last-child
+        css_pad = -5
+        return h + outer_gap + widgets_h + inner_gaps + css_pad
 
     def _on_header_allocated(self, widget, allocation) -> None:
         h = allocation.height
@@ -726,7 +759,7 @@ class NotificationGroup(AnimatedClippingBox):
 
     def _toggle_expand(self, btn, state: bool | None = None) -> None:
         self._expanded = state if state is not None else not self._expanded
-        self._toggle_icon.set_angle(-90 if self._expanded else 90)
+        self._toggle_icon.set_angle(90 if self._expanded else -90)
 
         if self._expanded:
             self._children_box.remove_style_class("contract")

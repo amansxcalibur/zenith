@@ -2,11 +2,11 @@ import math
 import cairo
 from typing import cast
 from fabric.widgets.box import Box
-from services.animator import Animator
+from services.animator import Animator, CubicBezierCurves
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk  # type: ignore
 
 
 class ClippingBox(Box):
@@ -102,7 +102,8 @@ class TrueClippingBox(Box):
         return self._clamp_h(minimum), self._clamp_h(natural)
 
     def do_get_preferred_height_for_width(self, width: int) -> tuple[int, int]:
-        return self.do_get_preferred_height()
+        minimum, natural = Box.do_get_preferred_height_for_width(self, width)
+        return self._clamp_h(minimum), self._clamp_h(natural)
 
     def do_size_allocate(self, allocation) -> None:
         alloc = allocation.copy()
@@ -161,23 +162,32 @@ class AnimatedClippingBox(TrueClippingBox):
     def __init__(
         self,
         duration: float = 0.25,
-        bezier_curve: tuple[float, float, float, float] = (0.42, 0, 0.58, 1),
+        contracting_bezier_curve: tuple[
+            float, float, float, float
+        ] = CubicBezierCurves.EXPRESSIVE,
+        expanding_bezier_curve: tuple[
+            float, float, float, float
+        ] = CubicBezierCurves.EMPHASIS,
+        max_overshoot_value: float = -1.0,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self._revealed = True if self._max_height == -1 else False
+        self._revealed = self._max_height == -1
+        self._contracting_bezier_curve = contracting_bezier_curve
+        self._expanding_bezier_curve = expanding_bezier_curve
 
         self.set_valign(Gtk.Align.START)
 
         self.animator = Animator(
-            bezier_curve=bezier_curve,
+            bezier_curve=contracting_bezier_curve,
             duration=duration,
             tick_widget=self,
+            max_overshoot_value=max_overshoot_value,
         )
         self.animator.connect("notify::value", self._on_animation_tick)
 
     def _on_animation_tick(self, animator: Animator, _pspec) -> None:
-        self.set_max_height(int(animator.value))
+        self.set_max_height(max(0, int(animator.value)))
 
     def _animate(self, from_height: int, to_height: int) -> None:
         self.animator.pause()
@@ -195,26 +205,28 @@ class AnimatedClippingBox(TrueClippingBox):
         if self._revealed:
             return
         self._revealed = True
+        self.animator.bezier_curve = self._expanding_bezier_curve
 
         if target_height is None:
             _, natural_height = Box.do_get_preferred_height(self)
         else:
             natural_height = target_height
+
         self._animate(self.get_allocated_height(), natural_height)
 
         # once animation settles, lift the constraint entirely
         # so future child resizes are never clipped
-        def _on_done(anim, _pspec):
-            if not anim.playing:
-                self.clear_max_height()
-                anim.disconnect(handler)
+        def _on_done(anim):
+            self.clear_max_height()
+            anim.disconnect(handler)
 
-        handler = self.animator.connect("notify::playing", _on_done)
+        handler = self.animator.connect("finished", _on_done)
 
     def collapse(self, target_height: int = _COLLAPSED_HEIGHT_DEFAULT) -> None:
         if not self._revealed:
             return
         self._revealed = False
+        self.animator.bezier_curve = self._contracting_bezier_curve
 
         self._max_height = self.get_allocated_height()
         self._animate(self.get_allocated_height(), target_height)
@@ -232,8 +244,10 @@ class OddlySpecificClippingBox(Box):
 
     @staticmethod
     def render_shape(
-        cr: cairo.Context, width: int, height: int, radii: list[int] = [0, 0, 0, 0]
+        cr: cairo.Context, width: int, height: int, radii: list[int] | None = None
     ):
+        if radii is None:
+            radii = [0, 0, 0, 0]
         tl, tr, br, bl = radii
 
         max_allowed = min(width / 2, height / 2)
@@ -273,7 +287,9 @@ class OddlySpecificClippingBox(Box):
 
         return cr.close_path()
 
-    def __init__(self, radii: list[int] = [0, 0, 0, 0], **kwargs):
+    def __init__(self, radii: list[int] | None = None, **kwargs):
+        if radii is None:
+            radii = [0, 0, 0, 0]
         self._radii = radii
         super().__init__(**kwargs)
 
