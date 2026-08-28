@@ -6,6 +6,7 @@ from fabric.widgets.revealer import Revealer
 from widgets.material_label import MaterialIconLabel
 
 from config.info import IS_WAYLAND
+
 if IS_WAYLAND:
     from fabric.widgets.wayland import WaylandWindow as Window
 else:
@@ -99,7 +100,11 @@ class TransientWindow(Window):
         if IS_WAYLAND:
             super().__init__(
                 name="notification-popup",
-                layer="top",
+                layer="overlay",
+                keyboard_mode="on-demand",
+                anchor="top",
+                exclusivity="none",
+                margin=(0, 0, 0, 0),
                 visible=False,
                 **kwargs,
             )
@@ -129,6 +134,7 @@ class TransientWindow(Window):
 
         self.children = Box(
             orientation="v",
+            style="min-height:1px",
             children=[
                 *self.revealers,
             ],
