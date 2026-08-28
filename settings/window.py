@@ -6,7 +6,6 @@ from fabric.widgets.stack import Stack
 from fabric.widgets.button import Button
 from config.info import IS_WAYLAND
 
-# #
 if IS_WAYLAND:
     from fabric.widgets.window import Window
 else:
@@ -39,7 +38,7 @@ from .tabs import (
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GLib  # type: ignore
+from gi.repository import Gtk, GLib  # type: ignore
 
 
 class DragHandler:
@@ -109,7 +108,7 @@ class SettingsWindow(Window):
                 ),
                 TabConfig(
                     "i3wm",
-                    "I3",
+                    "Sway" if IS_WAYLAND else "I3",
                     icons.bento.symbol(),
                     lambda: I3Tab().get_widget(),
                     "Appearance",

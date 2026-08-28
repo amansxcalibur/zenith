@@ -1,13 +1,16 @@
 import sys
+import shutil
 import subprocess
 from pathlib import Path
 from loguru import logger
 from PIL import Image, ImageFilter
 
+from fabric.utils.helpers import exec_shell_command_async
+
 from .helpers import get_screen_resolution_i3
 
 from config.config import config
-from config.info import ROOT_DIR, CACHE_DIR as cache_dir_str
+from config.info import ROOT_DIR, CACHE_DIR as cache_dir_str, IS_WAYLAND
 
 CACHE_DIR = Path(cache_dir_str)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,7 +37,7 @@ def lock_screen():
                 start_new_session=True,
             )
     else:
-        lock_with_i3lock()
+        _lock_with_external_locker()
 
 
 def get_cached_lockscreen(
@@ -56,16 +59,31 @@ def get_cached_lockscreen(
         return generate_lockscreen_image(wallpaper)
 
 
-def lock_with_i3lock() -> None:
+def _lock_with_external_locker() -> None:
     from modules.wallpaper import WallpaperService
 
     wallpaper = Path(WallpaperService().get_wallpaper_path())
     cached_img = get_cached_lockscreen(wallpaper)
 
+    lock_app = "swaylock" if IS_WAYLAND else "i3lock"
+    if not shutil.which(lock_app):
+        logger.error(f"'{lock_app}' binary not found.")
+        exec_shell_command_async(
+            f"notify-send -a 'Zenith Utils' 'Zenith Error' '\"{lock_app}\" not found. Failed to lock screen.'"
+        )
+        return
+
     subprocess.Popen(
-        ["i3lock", "-i", str(cached_img)],
+        [lock_app, "-i", str(cached_img)],
         start_new_session=True,
     )
+
+
+def get_available_external_locker() -> str | None:
+    preferred = "swaylock" if IS_WAYLAND else "i3lock"
+    if shutil.which(preferred):
+        return preferred
+    return None
 
 
 def generate_lockscreen_image(image_path: str | Path) -> Path | None:

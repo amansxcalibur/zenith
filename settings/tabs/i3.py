@@ -8,8 +8,10 @@ from widgets.material_label import MaterialIconLabel
 from widgets.animated_scale import AnimatedScale
 
 import icons
+from config.info import IS_WAYLAND
 from utils.cursor import add_hover_cursor
 from utils.helpers import bind_group_toggle
+from utils.lock import get_available_external_locker
 from ..state import state
 from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 
@@ -18,6 +20,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # type: ignore
 
+WM = "Sway" if IS_WAYLAND else "I3"
 
 class I3Tab(BaseWidget, SectionBuilderMixin):
     def __init__(self, **kwargs):
@@ -34,13 +37,14 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
                 "text": "zenith-lockscreen (WIP)",
                 "value": "zenith",
             },
-            {
+        ]
+        if locker := get_available_external_locker():
+            lockscreen_options.append({
                 "selected": False,
                 "icon": icons.editors_choice.symbol(),
-                "text": "i3lock",
-                "value": "i3lock",
-            },
-        ]
+                "text": locker,
+                "value": locker,
+            })
 
         lockscreen_selected = state.get(["system", "LOCKSCREEN"])
 
@@ -198,7 +202,7 @@ class I3Tab(BaseWidget, SectionBuilderMixin):
 
         self.container.add(
             LayoutBuilder.section(
-                "I3",
+                WM,
                 [
                     Box(
                         spacing=30,

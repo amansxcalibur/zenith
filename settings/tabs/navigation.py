@@ -15,6 +15,7 @@ import icons
 from ..base import BaseWidget, SectionBuilderMixin, LayoutBuilder
 from ..state import state
 from config.config import config
+from config.info import IS_WAYLAND
 
 import gi
 
@@ -30,11 +31,12 @@ class KeyBindingsTab(BaseWidget, SectionBuilderMixin):
 
         self.entries = {}
         self._overrides = state.get(["bindings", "custom"]) or {}
+        WM, wm = ("Sway", "sway") if IS_WAYLAND else ("i3", "i3")
 
         self.container.add(
             Label(
                 markup="<span weight='bold' foreground='#3584e4'>Note:</span> "
-                "<span alpha='70%'>i3 Bindings are not validated. Enter them using valid i3wm config syntax :)</span>",
+                f"<span alpha='70%'>{WM} Bindings are not validated. Enter them using valid {wm}wm config syntax :)</span>",
                 line_wrap="word",
                 h_align="start",
             )
@@ -42,7 +44,7 @@ class KeyBindingsTab(BaseWidget, SectionBuilderMixin):
 
         self.container.add(
             LayoutBuilder.section(
-                "i3 Bindings",
+                f"{WM} Bindings",
                 self.build_section(
                     None,
                     config.get_all_scoped_bindings("i3"),
