@@ -132,9 +132,15 @@ class TopPill(Window, Service):
         self.connect("delete-event", self.on_delete_event)
 
     def focus_pill(self):
+        if IS_WAYLAND:
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+            return
         exec_shell_command_async(f'i3-msg [window_role="^{self.WIN_ROLE}$"] focus')
 
     def unfocus_pill(self):
+        if IS_WAYLAND:
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+            return
         exec_shell_command_async("i3-msg focus mode_toggle")
 
     def lift_pill(self):

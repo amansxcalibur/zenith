@@ -48,7 +48,7 @@ class Pill(Window, Service):
             super().__init__(
                 # name="pill",
                 layer="top",
-                keyboard_mode="on-demand",
+                keyboard_mode="none",
                 anchor="bottom",
                 exclusivity="none",
                 margin=(0, 0, 0, 0),
@@ -175,14 +175,12 @@ class Pill(Window, Service):
     def focus_pill(self):
         if IS_WAYLAND:
             GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
-        else:
-            exec_shell_command_async(f'i3-msg [window_role="^{self.WIN_ROLE}$"] focus')
+        exec_shell_command_async(f'i3-msg [window_role="^{self.WIN_ROLE}$"] focus')
 
     def unfocus_pill(self):
         if IS_WAYLAND:
             GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
-        else:
-            exec_shell_command_async("i3-msg focus mode_toggle")
+        exec_shell_command_async("i3-msg focus mode_toggle")
 
     def lift_pill(self):
         if self._dock_is_visible and (
