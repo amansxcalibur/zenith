@@ -30,8 +30,8 @@ if IS_WAYLAND:
     from modules.core.bottom.shell_wm_wayland import ShellWindowManager
     from modules.core.top.shell_wm_wayland import ShellTopWindowManager
 else:
-    from modules.core.bottom.shell_window_manager import ShellWindowManager
-    from modules.core.top.shell_window_manager import ShellTopWindowManager
+    from modules.core.bottom.shell_window_x11 import ShellWindowManager
+    from modules.core.top.shell_window_x11 import ShellTopWindowManager
 
 
 def normalize_path():

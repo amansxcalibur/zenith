@@ -43,17 +43,18 @@ class ShellWindowManager:
             on_finished=self._on_snap_finish,
         )
 
-        self.pill_size_group = Gtk.SizeGroup.new(Gtk.SizeGroupMode.HORIZONTAL)
+        self.pill_size_group: Gtk.SizeGroup = Gtk.SizeGroup.new(
+            Gtk.SizeGroupMode.HORIZONTAL
+        )
         self._setup_size_groups()
 
-        # Connect signals
+        # connect signals
         self.pill.connect("on-drag", self._set_dock_state)
         self.pill.connect("on-drag-end", lambda w, state: self._snap_pill())
-        self.pill.connect("size-allocate", self._handle_geometry_change)
-        self.dockBar.connect("size-allocate", self._handle_geometry_change)
         self.dockBar.connect("notify::visible", self._on_dock_visibility_toggle)
 
         self._disconnect_geometry_enforcement(self.pill)
+        self._snap_pill()
 
     def _setup_size_groups(self):
         self.pill_size_group.add_widget(self.dockBar.pill_dock)
@@ -83,10 +84,11 @@ class ShellWindowManager:
         return self.dockBar.get_visible()
 
     def _on_dock_visibility_toggle(self, *args):
+        self.pill.enable_absolute_positioning()
         self._snap_pill()
 
     def _on_pill_resized(self, widget, allocation):
-        # Currently dragging, don't snap
+        # currently dragging, don't snap
         drag_state = self.pill.get_drag_state()
         if drag_state and drag_state.get("dragging"):
             return
@@ -228,7 +230,6 @@ class ShellWindowManager:
             self.pill_start_y
             + (self.pill_target_y - self.pill_start_y) * progress_percent
         )
-        print(current_x, current_y)
         self.pill.set_current_position(current_x, current_y)
 
     def _on_snap_finish(self, *_):
@@ -237,12 +238,22 @@ class ShellWindowManager:
         for anchor in self.layer_choice_for_pill["enable"]:
             GtkLayerShell.set_anchor(self.pill, anchor, True)
 
-        if not self.should_sit_inside_dock:
-            GtkLayerShell.set_margin(
-                self.pill, GtkLayerShell.Edge.BOTTOM, self.DOCK_HEIGHT
+        # if not self.should_sit_inside_dock:
+        bottom_margin = (
+            self.DOCK_HEIGHT
+            if (
+                self._is_dock_visible()
+                and len(self.layer_choice_for_pill["enable"]) != 1
+                and GtkLayerShell.Edge.BOTTOM in self.layer_choice_for_pill["enable"]
             )
-        else:
-            GtkLayerShell.set_margin(self.pill, GtkLayerShell.Edge.BOTTOM, 0)
+            else 0
+        )
+
+        self.pill.apply_snap_anchors(
+            enable_edges=self.layer_choice_for_pill["enable"],
+            disable_edges=self.layer_choice_for_pill["disable"],
+            bottom_margin=bottom_margin,
+        )
 
     def _disconnect_geometry_enforcement(self, widget):
         # Disable builtin geometry hooks to allow custom placement and prevent jitter.
@@ -305,19 +316,3 @@ class ShellWindowManager:
         #     )
 
         return is_overflowing
-
-    def _handle_geometry_change(self, widget, allocation):
-        ...
-        # drag_state = self.pill.get_drag_state()
-        # if drag_state and drag_state.get("dragging") or self.animator.playing:
-        #     return
-
-        # is_now_overflowing = self._check_horizontal_overflow()
-
-        # if is_now_overflowing != self.is_dock_overflowing:
-        #     self.is_dock_overflowing = is_now_overflowing
-        #     logger.debug(f"[Manager] Overflow state changed: {is_now_overflowing}")
-        #     GLib.idle_add(lambda: self._snap_pill(animate=False, fixed=True))
-
-        # elif widget == self.pill:
-        #     self._snap_pill(animate=False, fixed=True)

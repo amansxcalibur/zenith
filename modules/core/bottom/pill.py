@@ -49,7 +49,7 @@ class Pill(Window, Service):
                 # name="pill",
                 layer="top",
                 keyboard_mode="none",
-                anchor="bottom",
+                anchor=f"{config.pill.POSITION.y} {config.pill.POSITION.x}",
                 exclusivity="none",
                 margin=(0, 0, 0, 0),
                 visible=True,
@@ -208,7 +208,6 @@ class Pill(Window, Service):
             lambda: (
                 # self.launcher.open_launcher(),
                 self.launcher.search_entry.set_text(""),
-                print("grab focus via keybind via sway wm"),
                 self.launcher.search_entry.grab_focus(),
             ),
         )
@@ -300,26 +299,7 @@ class Pill(Window, Service):
         x, y = self.get_current_position()
 
         if IS_WAYLAND:
-            self._old_anchors = {
-                edge: GtkLayerShell.get_anchor(self, edge)
-                for edge in (
-                    GtkLayerShell.Edge.TOP,
-                    GtkLayerShell.Edge.BOTTOM,
-                    GtkLayerShell.Edge.LEFT,
-                    GtkLayerShell.Edge.RIGHT,
-                )
-            }
-            self._old_margins = {
-                edge: GtkLayerShell.get_margin(self, edge) for edge in self._old_anchors
-            }
-
-            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
-            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
-            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
-            GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
-
-            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, y)
-            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, x)
+            self.enable_absolute_positioning(x, y)
 
         self._drag_state["offset_x"] = event.x_root - x
         self._drag_state["offset_y"] = event.y_root - y
@@ -345,7 +325,46 @@ class Pill(Window, Service):
         self._drag_state["dragging"] = False
         self.on_drag_end(self._drag_state)
 
-    def get_current_position(self):
+    def enable_absolute_positioning(self, x: int | None = None, y: int | None = None):
+        if not IS_WAYLAND:
+            return
+
+        if x is None or y is None:
+            x, y = self.get_current_position()
+
+        self._old_anchors = {
+            edge: GtkLayerShell.get_anchor(self, edge)
+            for edge in (
+                GtkLayerShell.Edge.TOP,
+                GtkLayerShell.Edge.BOTTOM,
+                GtkLayerShell.Edge.LEFT,
+                GtkLayerShell.Edge.RIGHT,
+            )
+        }
+        self._old_margins = {
+            edge: GtkLayerShell.get_margin(self, edge) for edge in self._old_anchors
+        }
+
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
+
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, y)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.LEFT, x)
+
+    def apply_snap_anchors(self, enable_edges, disable_edges, bottom_margin=0):
+        if not IS_WAYLAND:
+            return
+
+        for anchor in disable_edges:
+            GtkLayerShell.set_anchor(self, anchor, False)
+        for anchor in enable_edges:
+            GtkLayerShell.set_anchor(self, anchor, True)
+
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, bottom_margin)
+
+    def get_current_position(self) -> tuple[int, int]:
         # top left coordinates
         if not IS_WAYLAND:
             return self.get_position()
